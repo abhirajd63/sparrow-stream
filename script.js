@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const authModal = document.getElementById('auth-modal');
     const startAuthBtn = document.getElementById('start-auth');
     const cancelAuthBtn = document.getElementById('cancel-auth');
-    const closeModalBtn = document.querySelector('.close-modal');
+    const closeModalBtn = document.querySelector('.modal-close');
     
     // Status Elements
     const statusDot = document.getElementById('status-dot');
@@ -119,12 +119,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isConnected) {
             statusDot.classList.add('connected');
             statusText.textContent = 'Connected to Google Drive';
-            if (logoutBtn) logoutBtn.style.display = 'inline-flex';
             if (connectBtn) connectBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reconnect';
         } else {
             statusDot.classList.remove('connected');
             statusText.textContent = 'Not Connected';
-            if (logoutBtn) logoutBtn.style.display = 'none';
             if (connectBtn) connectBtn.innerHTML = '<i class="fab fa-google-drive"></i> Connect Google Drive';
         }
     }
@@ -234,6 +232,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            console.log('Loaded videos:', data.videos); // Debug log
+            
             allVideos = data.videos;
             filteredVideos = [...allVideos];
             
@@ -288,10 +288,20 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Make card clickable
-        card.addEventListener('click', function() {
-            const videoId = this.dataset.id;
-            window.location.href = `/player.html?id=${videoId}`;
+        // FIX: Use a closure to capture the video ID
+        const videoId = video.id;
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Opening video:', {
+                id: videoId,
+                title: video.title,
+                url: `/player.html?id=${encodeURIComponent(videoId)}`
+            });
+            
+            // Open player page with correct video ID
+            window.location.href = `/player.html?id=${encodeURIComponent(videoId)}`;
         });
         
         return card;
@@ -357,10 +367,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function hideLoading() {
         if (loadingElement) loadingElement.style.display = 'none';
-        if (videosContainer) videosContainer.style.display = 'grid';
+        if (videosContainer) videosContainer.style.display = 'flex';
     }
     
-    // FIXED: Added missing hideStates function
     function hideStates() {
         if (emptyState) emptyState.style.display = 'none';
         if (errorState) errorState.style.display = 'none';
@@ -444,27 +453,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function showMessage(message, type = 'info') {
         if (!toast) return;
         
-        toast.textContent = message;
-        toast.className = 'toast';
+        const toastElement = document.getElementById('message-toast');
+        if (!toastElement) return;
+        
+        toastElement.textContent = message;
+        toastElement.className = 'toast-notification';
         
         switch (type) {
             case 'success':
-                toast.style.background = '#27ae60';
+                toastElement.style.background = '#27ae60';
                 break;
             case 'warning':
-                toast.style.background = '#f39c12';
+                toastElement.style.background = '#f39c12';
                 break;
             case 'error':
-                toast.style.background = '#e50914';
+                toastElement.style.background = '#e50914';
                 break;
             default:
-                toast.style.background = '#2c3e50';
+                toastElement.style.background = '#2c3e50';
         }
         
-        toast.classList.add('show');
+        toastElement.classList.add('show');
         
         setTimeout(() => {
-            toast.classList.remove('show');
+            toastElement.classList.remove('show');
         }, 5000);
     }
     
