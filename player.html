@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sparrow Stream - Video Player</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://vjs.zencdn.net/7.20.3/video-js.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -45,14 +44,16 @@
             overflow: hidden;
             margin-bottom: 20px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            min-height: 400px;
+            min-height: 500px;
             position: relative;
         }
         
-        .video-js {
+        .player-iframe {
             width: 100%;
             height: 100%;
-            min-height: 400px;
+            min-height: 500px;
+            border: none;
+            border-radius: 10px;
         }
         
         .video-controls-panel {
@@ -117,10 +118,12 @@
             display: flex;
             gap: 15px;
             margin-top: 30px;
+            flex-wrap: wrap;
         }
         
         .action-buttons button {
             flex: 1;
+            min-width: 200px;
             padding: 15px;
             font-size: 16px;
             display: flex;
@@ -161,36 +164,7 @@
             word-break: break-all;
         }
         
-        .streaming-method {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .method-badge {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        
-        .method-direct {
-            background: #10b981;
-            color: white;
-        }
-        
-        .method-proxy {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .method-fallback {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .loading-player {
+        .loading-state {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -214,36 +188,18 @@
             100% { transform: rotate(360deg); }
         }
         
-        .player-fallback {
-            width: 100%;
-            height: 500px;
-            border: none;
-            border-radius: 10px;
-        }
-        
-        .streaming-status {
-            padding: 10px;
+        .player-notice {
+            background: #e8f4fd;
+            border: 1px solid #b6d4fe;
             border-radius: 8px;
-            margin-top: 10px;
-            font-size: 14px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
         }
         
-        .status-success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-        
-        .status-warning {
-            background: #fef3c7;
-            color: #92400e;
-            border: 1px solid #f59e0b;
-        }
-        
-        .status-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
+        .player-notice i {
+            color: #0d6efd;
+            margin-right: 10px;
         }
         
         @media (max-width: 768px) {
@@ -261,6 +217,14 @@
                 font-size: 20px;
             }
             
+            .video-player-wrapper {
+                min-height: 400px;
+            }
+            
+            .player-iframe {
+                min-height: 400px;
+            }
+            
             .control-group {
                 flex-direction: column;
             }
@@ -271,6 +235,10 @@
             
             .action-buttons {
                 flex-direction: column;
+            }
+            
+            .action-buttons button {
+                min-width: 100%;
             }
             
             .info-row {
@@ -307,55 +275,50 @@
                         <span id="video-format"><i class="fas fa-file-video"></i> Loading...</span>
                     </div>
                 </div>
-                <div id="player-auth-status" class="status-badge status-disconnected">
-                    <i class="fas fa-sync-alt fa-spin"></i> Loading...
+                <div id="player-auth-status" class="status-badge status-connected">
+                    <i class="fas fa-check-circle"></i> Connected
                 </div>
             </div>
             
+            <!-- Player Notice -->
+            <div class="player-notice">
+                <i class="fas fa-info-circle"></i>
+                Using Google Drive's built-in player for best compatibility
+            </div>
+            
+            <!-- Video Player (Google Drive Iframe) -->
             <div class="video-player-wrapper">
-                <!-- Loading state -->
-                <div id="player-loading" class="loading-player">
+                <!-- Loading State -->
+                <div id="player-loading" class="loading-state">
                     <div class="loading-spinner"></div>
-                    <p>Loading video player...</p>
+                    <p>Loading video from Google Drive...</p>
                 </div>
                 
-                <!-- Video.js Player -->
-                <video
-                    id="my-video"
-                    class="video-js vjs-big-play-centered vjs-fluid"
-                    controls
-                    preload="auto"
-                    poster=""
-                    data-setup='{}'
-                    style="display: none;"
-                >
-                    <p class="vjs-no-js">
-                        To view this video please enable JavaScript, or consider upgrading to a
-                        web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-                    </p>
-                </video>
-                
-                <!-- Fallback iframe (hidden initially) -->
+                <!-- Google Drive Iframe Player -->
                 <iframe 
-                    id="fallback-player"
-                    class="player-fallback"
-                    style="display: none;"
+                    id="drive-player"
+                    class="player-iframe"
+                    src=""
                     frameborder="0" 
-                    allow="autoplay; fullscreen" 
-                    allowfullscreen>
+                    allow="autoplay; fullscreen; accelerometer; gyroscope; picture-in-picture" 
+                    allowfullscreen
+                    style="display: none;">
                 </iframe>
-            </div>
-            
-            <!-- Streaming Status -->
-            <div id="streaming-status" class="streaming-status" style="display: none;">
-                <i class="fas fa-info-circle"></i> <span id="status-message">Initializing player...</span>
-                <span id="streaming-method" class="method-badge method-direct" style="margin-left: 10px;">Direct</span>
             </div>
             
             <div class="video-controls-panel">
                 <div class="control-section">
-                    <h3><i class="fas fa-sliders-h"></i> Playback Controls</h3>
+                    <h3><i class="fas fa-sliders-h"></i> Player Options</h3>
                     <div class="control-group">
+                        <div class="control-item">
+                            <label for="quality-select"><i class="fas fa-tv"></i> Playback Quality</label>
+                            <select id="quality-select" onchange="changeQuality(this.value)">
+                                <option value="auto">Auto (Recommended)</option>
+                                <option value="hd">High Quality</option>
+                                <option value="sd">Standard Quality</option>
+                            </select>
+                        </div>
+                        
                         <div class="control-item">
                             <label for="playback-speed"><i class="fas fa-tachometer-alt"></i> Playback Speed</label>
                             <select id="playback-speed">
@@ -365,41 +328,6 @@
                                 <option value="1.25">1.25x</option>
                                 <option value="1.5">1.5x</option>
                                 <option value="2">2x (Fast)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="control-item">
-                            <label for="quality-select"><i class="fas fa-tv"></i> Streaming Method</label>
-                            <select id="stream-method-select">
-                                <option value="auto">Auto (Recommended)</option>
-                                <option value="direct">Direct Stream</option>
-                                <option value="proxy">Proxy Stream</option>
-                                <option value="embed">Google Drive Embed</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="control-section">
-                    <h3><i class="fas fa-closed-captioning"></i> Subtitles & Audio</h3>
-                    <div class="control-group">
-                        <div class="control-item">
-                            <label for="subtitle-select"><i class="fas fa-closed-captioning"></i> Subtitles</label>
-                            <select id="subtitle-select">
-                                <option value="none">No subtitles</option>
-                                <option value="en">English</option>
-                                <option value="es">Spanish</option>
-                                <option value="fr">French</option>
-                                <option value="custom">Load custom subtitle file...</option>
-                            </select>
-                        </div>
-                        
-                        <div class="control-item">
-                            <label for="audio-track"><i class="fas fa-volume-up"></i> Audio Track</label>
-                            <select id="audio-track">
-                                <option value="default">Default</option>
-                                <option value="english">English</option>
-                                <option value="spanish">Spanish</option>
                             </select>
                         </div>
                     </div>
@@ -415,8 +343,8 @@
                     <button id="share-btn" class="btn btn-secondary">
                         <i class="fas fa-share"></i> Share Link
                     </button>
-                    <button id="reload-player-btn" class="btn btn-secondary">
-                        <i class="fas fa-redo"></i> Reload Player
+                    <button id="refresh-player" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Refresh Player
                     </button>
                 </div>
             </div>
@@ -425,509 +353,195 @@
                 <h3><i class="fas fa-info-circle"></i> Video Information</h3>
                 <div class="info-row">
                     <div class="info-label">Video ID:</div>
-                    <div class="info-value" id="info-video-id">Loading...</div>
+                    <div class="info-value">1MaNZnl-JblDMuGGSiPK5RPqnuygT8QGH</div>
                 </div>
                 <div class="info-row">
-                    <div class="info-label">File Size:</div>
-                    <div class="info-value" id="info-file-size">Loading...</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Format:</div>
-                    <div class="info-value" id="info-format">Loading...</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Player Status:</div>
-                    <div class="info-value" id="player-status">Initializing...</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Current Stream URL:</div>
+                    <div class="info-label">Direct Google Drive Link:</div>
                     <div class="info-value">
-                        <input type="text" id="stream-url" readonly style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-                        <button onclick="copyStreamUrl()" class="btn-small" style="margin-top: 5px;">
+                        <input type="text" id="direct-link" readonly value="https://drive.google.com/file/d/1MaNZnl-JblDMuGGSiPK5RPqnuygT8QGH/view" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                        <button onclick="copyDirectLink()" class="btn-small" style="margin-top: 5px;">
+                            <i class="fas fa-copy"></i> Copy Link
+                        </button>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Embed URL:</div>
+                    <div class="info-value">
+                        <input type="text" id="embed-url" readonly value="https://drive.google.com/file/d/1MaNZnl-JblDMuGGSiPK5RPqnuygT8QGH/preview" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                        <button onclick="copyEmbedUrl()" class="btn-small" style="margin-top: 5px;">
                             <i class="fas fa-copy"></i> Copy URL
                         </button>
                     </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Download Link:</div>
+                    <div class="info-value">
+                        <input type="text" id="download-url" readonly value="https://drive.google.com/uc?export=download&id=1MaNZnl-JblDMuGGSiPK5RPqnuygT8QGH" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                        <button onclick="copyDownloadUrl()" class="btn-small" style="margin-top: 5px;">
+                            <i class="fas fa-copy"></i> Copy URL
+                        </button>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Player Status:</div>
+                    <div class="info-value" id="player-status">Loading...</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Video.js library -->
-    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
-    
     <script>
-        // Get video ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const videoId = urlParams.get('id');
+        // Your Video ID
+        const VIDEO_ID = '1MaNZnl-JblDMuGGSiPK5RPqnuygT8QGH';
         
-        // Global variables
-        let videoData = null;
-        let player = null;
-        let currentStreamMethod = 'auto';
-        let streamingAttempts = 0;
-        const MAX_STREAMING_ATTEMPTS = 3;
+        // Google Drive URLs
+        const DRIVE_URLS = {
+            view: `https://drive.google.com/file/d/${VIDEO_ID}/view`,
+            preview: `https://drive.google.com/file/d/${VIDEO_ID}/preview`,
+            download: `https://drive.google.com/uc?export=download&id=${VIDEO_ID}`,
+            embed: `https://drive.google.com/file/d/${VIDEO_ID}/preview`
+        };
         
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            if (!videoId) {
-                showError('No video ID specified');
-                return;
-            }
-            
-            checkAuthStatus();
-            loadVideo();
+            initializePlayer();
             setupEventListeners();
             
-            // Listen for messages from auth callback
-            window.addEventListener('message', function(event) {
-                if (event.data === 'auth_success') {
-                    // Reload video data after successful auth
-                    loadVideo();
-                    checkAuthStatus();
-                }
-            });
+            // Set video title from URL or default
+            const urlParams = new URLSearchParams(window.location.search);
+            const title = urlParams.get('title') || 'Your Video';
+            document.getElementById('player-video-title').textContent = title;
         });
         
-        // Check authentication status
-        async function checkAuthStatus() {
-            try {
-                const response = await fetch('/api/auth-status');
-                const data = await response.json();
-                
-                const statusElement = document.getElementById('player-auth-status');
-                if (data.authenticated) {
-                    statusElement.className = 'status-badge status-connected';
-                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
-                } else {
-                    statusElement.className = 'status-badge status-disconnected';
-                    statusElement.innerHTML = '<i class="fas fa-times-circle"></i> Not Connected';
-                    
-                    if (data.needAuth) {
-                        showMessage('Please connect Google Drive to play videos', 'warning');
-                    }
-                }
-            } catch (error) {
-                console.error('Auth check error:', error);
-            }
-        }
-        
-        // Load video data
-        async function loadVideo() {
-            try {
-                document.getElementById('player-video-title').textContent = 'Loading...';
-                document.getElementById('player-status').textContent = 'Fetching video data...';
-                document.getElementById('streaming-status').style.display = 'block';
-                document.getElementById('status-message').textContent = 'Fetching video information...';
-                
-                const response = await fetch(`/api/video/${videoId}`);
-                const data = await response.json();
-                
-                if (data.error) {
-                    showError(data.error);
-                    
-                    if (data.needAuth) {
-                        // Show reconnect option
-                        setTimeout(() => {
-                            if (confirm('Authentication required. Would you like to reconnect to Google Drive?')) {
-                                window.location.href = '/';
-                            }
-                        }, 1000);
-                    }
-                    return;
-                }
-                
-                videoData = data;
-                updateVideoInfo();
-                initializeVideoPlayer();
-                
-            } catch (error) {
-                console.error('Error loading video:', error);
-                showError('Failed to load video: ' + error.message);
-                fallbackToGoogleDrive();
-            }
-        }
-        
-        // Update video information display
-        function updateVideoInfo() {
-            if (!videoData) return;
+        // Initialize Google Drive player
+        function initializePlayer() {
+            console.log('Initializing Google Drive player...');
+            document.getElementById('player-status').textContent = 'Loading Google Drive player...';
             
-            document.getElementById('player-video-title').textContent = videoData.title;
-            document.getElementById('info-video-id').textContent = videoId;
-            document.getElementById('info-file-size').textContent = videoData.size || 'Unknown';
-            document.getElementById('info-format').textContent = videoData.mimeType || 'Video';
-            document.getElementById('stream-url').value = videoData.streamUrl;
+            // Get iframe element
+            const iframe = document.getElementById('drive-player');
             
-            // Update video meta info
-            document.getElementById('video-size').innerHTML = `<i class="fas fa-hdd"></i> ${videoData.size || 'Unknown'}`;
-            document.getElementById('video-format').innerHTML = `<i class="fas fa-file-video"></i> ${getFileExtension(videoData.mimeType)}`;
-        }
-        
-        // Initialize Video.js player with multiple streaming methods
-        function initializeVideoPlayer() {
-            try {
-                streamingAttempts = 0;
-                currentStreamMethod = document.getElementById('stream-method-select').value;
-                
-                // Hide loading, show video player
+            // Set iframe source
+            iframe.src = DRIVE_URLS.embed;
+            
+            // Show iframe when loaded
+            iframe.onload = function() {
+                console.log('Google Drive player loaded successfully');
                 document.getElementById('player-loading').style.display = 'none';
-                document.getElementById('my-video').style.display = 'block';
-                document.getElementById('fallback-player').style.display = 'none';
+                iframe.style.display = 'block';
+                document.getElementById('player-status').textContent = 'Ready to play';
                 
-                // Destroy existing player if any
-                if (player) {
-                    player.dispose();
-                }
-                
-                // Get streaming source based on selected method
-                const source = getStreamingSource(currentStreamMethod);
-                
-                // Update status display
-                updateStreamingStatus('initializing', `Using ${source.method} streaming...`);
-                document.getElementById('streaming-method').textContent = source.method;
-                document.getElementById('streaming-method').className = `method-badge method-${source.method}`;
-                
-                // Create new player
-                player = videojs('my-video', {
-                    controls: true,
-                    autoplay: false,
-                    preload: 'auto',
-                    fluid: true,
-                    responsive: true,
-                    playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-                    sources: [{
-                        src: source.url,
-                        type: source.type
-                    }],
-                    html5: {
-                        vhs: {
-                            overrideNative: true
-                        },
-                        nativeAudioTracks: false,
-                        nativeVideoTracks: false
+                // Try to auto-play (may be blocked by browser)
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+                    } catch (e) {
+                        console.log('Auto-play not supported');
                     }
-                });
-                
-                // Player event listeners
-                player.on('loadedmetadata', function() {
-                    document.getElementById('player-status').textContent = 'Ready to play';
-                    updateStreamingStatus('success', `Streaming via ${source.method} method`);
-                    updateVideoDuration();
-                });
-                
-                player.on('playing', function() {
-                    document.getElementById('player-status').textContent = 'Playing';
-                    updateStreamingStatus('success', `Streaming via ${source.method} method`);
-                });
-                
-                player.on('pause', function() {
-                    document.getElementById('player-status').textContent = 'Paused';
-                });
-                
-                player.on('error', function() {
-                    streamingAttempts++;
-                    const error = player.error();
-                    console.error('Player error:', error);
-                    
-                    if (streamingAttempts < MAX_STREAMING_ATTEMPTS) {
-                        // Try next streaming method
-                        tryNextStreamingMethod();
-                    } else {
-                        // All methods failed, fallback to Google Drive
-                        updateStreamingStatus('error', 'All streaming methods failed');
-                        fallbackToGoogleDrive();
-                    }
-                });
-                
-                console.log(`Video player initialized with ${source.method} method`);
-                
-            } catch (error) {
-                console.error('Player initialization error:', error);
-                updateStreamingStatus('error', 'Player initialization failed');
-                
-                if (streamingAttempts < MAX_STREAMING_ATTEMPTS) {
-                    tryNextStreamingMethod();
-                } else {
-                    fallbackToGoogleDrive();
-                }
-            }
-        }
-        
-        // Get streaming source based on method
-        function getStreamingSource(method) {
-            if (!videoData) return { url: '', type: 'video/mp4', method: 'direct' };
-            
-            switch(method) {
-                case 'direct':
-                    return {
-                        url: videoData.streamUrl,
-                        type: getVideoType(videoData.mimeType),
-                        method: 'direct'
-                    };
-                
-                case 'proxy':
-                    return {
-                        url: `/api/stream/${videoId}`,
-                        type: 'video/mp4',
-                        method: 'proxy'
-                    };
-                
-                case 'embed':
-                    // For embed method, we'll use iframe instead
-                    useGoogleDriveEmbed();
-                    return {
-                        url: videoData.alternativeUrls?.preview || `https://drive.google.com/file/d/${videoId}/preview`,
-                        type: 'video/mp4',
-                        method: 'embed'
-                    };
-                
-                case 'auto':
-                default:
-                    // Auto: Try proxy first, then direct, then embed
-                    if (streamingAttempts === 0) {
-                        return {
-                            url: `/api/stream/${videoId}`,
-                            type: 'video/mp4',
-                            method: 'proxy'
-                        };
-                    } else if (streamingAttempts === 1) {
-                        return {
-                            url: videoData.streamUrl,
-                            type: getVideoType(videoData.mimeType),
-                            method: 'direct'
-                        };
-                    } else {
-                        useGoogleDriveEmbed();
-                        return {
-                            url: videoData.alternativeUrls?.preview || `https://drive.google.com/file/d/${videoId}/preview`,
-                            type: 'video/mp4',
-                            method: 'embed'
-                        };
-                    }
-            }
-        }
-        
-        // Try next streaming method
-        function tryNextStreamingMethod() {
-            updateStreamingStatus('warning', `Trying alternative streaming method (attempt ${streamingAttempts + 1}/${MAX_STREAMING_ATTEMPTS})`);
-            
-            // Get next method in sequence
-            const methods = ['proxy', 'direct', 'embed'];
-            const currentIndex = methods.indexOf(currentStreamMethod === 'auto' ? 'proxy' : currentStreamMethod);
-            const nextMethod = currentIndex < methods.length - 1 ? methods[currentIndex + 1] : 'embed';
-            
-            // Update UI to show we're trying next method
-            document.getElementById('stream-method-select').value = nextMethod;
-            currentStreamMethod = nextMethod;
-            
-            // Reinitialize player with new method
-            setTimeout(() => {
-                if (nextMethod === 'embed') {
-                    useGoogleDriveEmbed();
-                } else {
-                    const source = getStreamingSource(nextMethod);
-                    if (player) {
-                        player.src({ src: source.url, type: source.type });
-                        player.load();
-                        player.play().catch(e => console.log('Auto-play prevented:', e));
-                    }
-                }
-            }, 1000);
-        }
-        
-        // Use Google Drive embed as fallback
-        function useGoogleDriveEmbed() {
-            const embedUrl = videoData?.alternativeUrls?.preview || `https://drive.google.com/file/d/${videoId}/preview`;
-            
-            // Hide video.js player
-            document.getElementById('my-video').style.display = 'none';
-            if (player) {
-                player.dispose();
-                player = null;
-            }
-            
-            // Show iframe
-            const iframe = document.getElementById('fallback-player');
-            iframe.src = embedUrl;
-            iframe.style.display = 'block';
-            
-            // Update status
-            document.getElementById('player-status').textContent = 'Using Google Drive player';
-            updateStreamingStatus('warning', 'Using Google Drive embedded player');
-            document.getElementById('streaming-method').textContent = 'embed';
-            document.getElementById('streaming-method').className = 'method-badge method-fallback';
-            
-            console.log('Switched to Google Drive embed player');
-        }
-        
-        // Fallback to Google Drive if everything fails
-        function fallbackToGoogleDrive() {
-            updateStreamingStatus('error', 'Falling back to Google Drive');
-            useGoogleDriveEmbed();
-        }
-        
-        // Update streaming status display
-        function updateStreamingStatus(type, message) {
-            const statusElement = document.getElementById('streaming-status');
-            const messageElement = document.getElementById('status-message');
-            
-            statusElement.className = `streaming-status status-${type}`;
-            messageElement.textContent = message;
-            statusElement.style.display = 'block';
-        }
-        
-        // Update video duration info
-        function updateVideoDuration() {
-            if (!player) return;
-            
-            const duration = player.duration();
-            if (duration && !isNaN(duration)) {
-                const durationStr = formatTime(duration);
-                document.getElementById('video-size').innerHTML = `<i class="fas fa-clock"></i> Duration: ${durationStr}`;
-            }
-        }
-        
-        // Helper function to detect video type
-        function getVideoType(mimeType) {
-            if (!mimeType) return 'video/mp4';
-            
-            if (mimeType.includes('mp4')) return 'video/mp4';
-            if (mimeType.includes('webm')) return 'video/webm';
-            if (mimeType.includes('ogg') || mimeType.includes('ogv')) return 'video/ogg';
-            if (mimeType.includes('avi')) return 'video/x-msvideo';
-            if (mimeType.includes('mov')) return 'video/quicktime';
-            if (mimeType.includes('wmv')) return 'video/x-ms-wmv';
-            if (mimeType.includes('mkv')) return 'video/x-matroska';
-            
-            return 'video/mp4';
-        }
-        
-        // Get file extension from mime type
-        function getFileExtension(mimeType) {
-            if (!mimeType) return 'Video';
-            
-            const extensions = {
-                'video/mp4': 'MP4',
-                'video/webm': 'WebM',
-                'video/ogg': 'OGG',
-                'video/x-msvideo': 'AVI',
-                'video/quicktime': 'MOV',
-                'video/x-ms-wmv': 'WMV',
-                'video/x-matroska': 'MKV',
-                'video/mpeg': 'MPEG'
+                }, 1000);
             };
             
-            return extensions[mimeType] || mimeType.split('/').pop().toUpperCase();
+            // Handle iframe errors
+            iframe.onerror = function() {
+                console.error('Failed to load Google Drive player');
+                document.getElementById('player-loading').innerHTML = `
+                    <div style="color: #e74c3c;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <p>Failed to load video player</p>
+                        <p>Please check if the video is publicly accessible in Google Drive</p>
+                        <button onclick="openInNewTab()" class="btn btn-primary" style="margin-top: 20px;">
+                            <i class="fab fa-google-drive"></i> Open in Google Drive
+                        </button>
+                    </div>
+                `;
+                document.getElementById('player-status').textContent = 'Error loading player';
+            };
         }
         
-        // Setup event listeners for controls
+        // Setup event listeners
         function setupEventListeners() {
-            // Playback speed
-            document.getElementById('playback-speed').addEventListener('change', function(e) {
-                if (player) {
-                    player.playbackRate(parseFloat(e.target.value));
-                }
-            });
-            
-            // Streaming method selector
-            document.getElementById('stream-method-select').addEventListener('change', function(e) {
-                currentStreamMethod = e.target.value;
-                streamingAttempts = 0;
-                
-                if (currentStreamMethod === 'embed') {
-                    useGoogleDriveEmbed();
-                } else {
-                    // Destroy and recreate player with new method
-                    if (player) {
-                        player.dispose();
-                        player = null;
-                    }
-                    initializeVideoPlayer();
-                }
-            });
-            
             // Download button
             document.getElementById('download-btn').addEventListener('click', function() {
-                if (videoData && videoData.downloadUrl) {
-                    window.open(videoData.downloadUrl, '_blank');
-                } else {
-                    const downloadUrl = `https://drive.google.com/uc?export=download&id=${videoId}`;
-                    window.open(downloadUrl, '_blank');
-                }
+                window.open(DRIVE_URLS.download, '_blank');
             });
             
-            // Open in Google Drive
+            // Open in Google Drive button
             document.getElementById('open-drive-btn').addEventListener('click', function() {
-                if (videoData && videoData.directLink) {
-                    window.open(videoData.directLink, '_blank');
-                } else {
-                    const driveUrl = `https://drive.google.com/file/d/${videoId}/view`;
-                    window.open(driveUrl, '_blank');
-                }
+                window.open(DRIVE_URLS.view, '_blank');
             });
             
             // Share button
             document.getElementById('share-btn').addEventListener('click', function() {
                 const currentUrl = window.location.href;
                 navigator.clipboard.writeText(currentUrl).then(() => {
-                    showMessage('Link copied to clipboard!', 'success');
+                    showMessage('Video link copied to clipboard!', 'success');
                 }).catch(() => {
-                    // Fallback for older browsers
                     prompt('Copy this link to share:', currentUrl);
                 });
             });
             
-            // Reload player button
-            document.getElementById('reload-player-btn').addEventListener('click', function() {
-                streamingAttempts = 0;
-                if (player) {
-                    player.dispose();
-                    player = null;
-                }
-                document.getElementById('my-video').style.display = 'block';
-                document.getElementById('fallback-player').style.display = 'none';
+            // Refresh player button
+            document.getElementById('refresh-player').addEventListener('click', function() {
                 document.getElementById('player-loading').style.display = 'block';
+                document.getElementById('drive-player').style.display = 'none';
+                document.getElementById('player-status').textContent = 'Refreshing...';
+                
                 setTimeout(() => {
-                    initializeVideoPlayer();
+                    initializePlayer();
                 }, 500);
             });
             
-            // Subtitle selector (placeholder - would need actual subtitle files)
-            document.getElementById('subtitle-select').addEventListener('change', function(e) {
-                if (e.target.value === 'custom') {
-                    const url = prompt('Enter URL to subtitle file (WebVTT format):');
-                    if (url) {
-                        showMessage('Custom subtitle loading not implemented yet', 'info');
-                    }
-                    e.target.value = 'none';
-                }
+            // Playback speed (informational - doesn't affect iframe)
+            document.getElementById('playback-speed').addEventListener('change', function(e) {
+                showMessage(`Note: Playback speed control is not available in Google Drive player`, 'info');
             });
         }
         
-        // Helper functions
+        // Change quality (informational)
+        function changeQuality(quality) {
+            const messages = {
+                'auto': 'Auto quality selected',
+                'hd': 'High quality selected (if available)',
+                'sd': 'Standard quality selected'
+            };
+            showMessage(`Note: ${messages[quality]} - Google Drive controls quality automatically`, 'info');
+        }
+        
+        // Copy functions
+        function copyDirectLink() {
+            const input = document.getElementById('direct-link');
+            input.select();
+            document.execCommand('copy');
+            showMessage('Direct link copied to clipboard!', 'success');
+        }
+        
+        function copyEmbedUrl() {
+            const input = document.getElementById('embed-url');
+            input.select();
+            document.execCommand('copy');
+            showMessage('Embed URL copied to clipboard!', 'success');
+        }
+        
+        function copyDownloadUrl() {
+            const input = document.getElementById('download-url');
+            input.select();
+            document.execCommand('copy');
+            showMessage('Download link copied to clipboard!', 'success');
+        }
+        
+        // Open in new tab
+        function openInNewTab() {
+            window.open(DRIVE_URLS.view, '_blank');
+        }
+        
+        // Go back to library
         function goBack() {
             window.location.href = '/';
         }
         
-        function copyStreamUrl() {
-            const streamUrlInput = document.getElementById('stream-url');
-            streamUrlInput.select();
-            document.execCommand('copy');
-            showMessage('Stream URL copied to clipboard!', 'success');
-        }
-        
-        function formatTime(seconds) {
-            const hrs = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            
-            if (hrs > 0) {
-                return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            } else {
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
-            }
-        }
-        
+        // Show message toast
         function showMessage(message, type = 'info') {
+            // Create toast element
             const toast = document.createElement('div');
             toast.textContent = message;
             toast.style.cssText = `
@@ -939,33 +553,61 @@
                 color: white;
                 border-radius: 10px;
                 z-index: 1000;
-                animation: fadeIn 0.3s;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                animation: slideIn 0.3s ease-out;
             `;
             
             document.body.appendChild(toast);
             
+            // Remove after 3 seconds
             setTimeout(() => {
-                toast.style.animation = 'fadeOut 0.3s';
+                toast.style.animation = 'slideOut 0.3s ease-out';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
         
-        function showError(message) {
-            console.error(message);
-            showMessage(`ERROR: ${message}`, 'error');
-            document.getElementById('player-status').textContent = `Error: ${message}`;
+        // Debug function
+        function debugPlayer() {
+            console.log('=== PLAYER DEBUG INFO ===');
+            console.log('Video ID:', VIDEO_ID);
+            console.log('Drive URLs:', DRIVE_URLS);
+            console.log('Iframe src:', document.getElementById('drive-player').src);
+            console.log('Iframe loaded:', document.getElementById('drive-player').complete);
+            
+            // Test if video is accessible
+            fetch(DRIVE_URLS.preview, { mode: 'no-cors' })
+                .then(() => console.log('Drive preview accessible'))
+                .catch(() => console.log('Drive preview not accessible'));
         }
+        
+        // Auto-debug after 3 seconds
+        setTimeout(debugPlayer, 3000);
     </script>
     
     <style>
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         
-        @keyframes fadeOut {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-20px); }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .btn-small:hover {
+            background: #5a67d8;
         }
     </style>
 </body>
