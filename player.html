@@ -45,6 +45,14 @@
             overflow: hidden;
             margin-bottom: 20px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            min-height: 400px;
+            position: relative;
+        }
+        
+        .video-js {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
         }
         
         .video-controls-panel {
@@ -150,6 +158,92 @@
         
         .info-value {
             color: #333;
+            word-break: break-all;
+        }
+        
+        .streaming-method {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .method-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .method-direct {
+            background: #10b981;
+            color: white;
+        }
+        
+        .method-proxy {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .method-fallback {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .loading-player {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .player-fallback {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 10px;
+        }
+        
+        .streaming-status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
         }
         
         @media (max-width: 768px) {
@@ -177,6 +271,15 @@
             
             .action-buttons {
                 flex-direction: column;
+            }
+            
+            .info-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .info-label {
+                min-width: 100%;
             }
         }
     </style>
@@ -210,6 +313,13 @@
             </div>
             
             <div class="video-player-wrapper">
+                <!-- Loading state -->
+                <div id="player-loading" class="loading-player">
+                    <div class="loading-spinner"></div>
+                    <p>Loading video player...</p>
+                </div>
+                
+                <!-- Video.js Player -->
                 <video
                     id="my-video"
                     class="video-js vjs-big-play-centered vjs-fluid"
@@ -217,12 +327,29 @@
                     preload="auto"
                     poster=""
                     data-setup='{}'
+                    style="display: none;"
                 >
                     <p class="vjs-no-js">
                         To view this video please enable JavaScript, or consider upgrading to a
                         web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
                     </p>
                 </video>
+                
+                <!-- Fallback iframe (hidden initially) -->
+                <iframe 
+                    id="fallback-player"
+                    class="player-fallback"
+                    style="display: none;"
+                    frameborder="0" 
+                    allow="autoplay; fullscreen" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+            
+            <!-- Streaming Status -->
+            <div id="streaming-status" class="streaming-status" style="display: none;">
+                <i class="fas fa-info-circle"></i> <span id="status-message">Initializing player...</span>
+                <span id="streaming-method" class="method-badge method-direct" style="margin-left: 10px;">Direct</span>
             </div>
             
             <div class="video-controls-panel">
@@ -242,13 +369,12 @@
                         </div>
                         
                         <div class="control-item">
-                            <label for="quality-select"><i class="fas fa-tv"></i> Quality</label>
-                            <select id="quality-select">
+                            <label for="quality-select"><i class="fas fa-tv"></i> Streaming Method</label>
+                            <select id="stream-method-select">
                                 <option value="auto">Auto (Recommended)</option>
-                                <option value="1080">1080p (if available)</option>
-                                <option value="720">720p</option>
-                                <option value="480">480p</option>
-                                <option value="360">360p</option>
+                                <option value="direct">Direct Stream</option>
+                                <option value="proxy">Proxy Stream</option>
+                                <option value="embed">Google Drive Embed</option>
                             </select>
                         </div>
                     </div>
@@ -289,6 +415,9 @@
                     <button id="share-btn" class="btn btn-secondary">
                         <i class="fas fa-share"></i> Share Link
                     </button>
+                    <button id="reload-player-btn" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Reload Player
+                    </button>
                 </div>
             </div>
             
@@ -299,17 +428,25 @@
                     <div class="info-value" id="info-video-id">Loading...</div>
                 </div>
                 <div class="info-row">
-                    <div class="info-label">Stream URL:</div>
+                    <div class="info-label">File Size:</div>
+                    <div class="info-value" id="info-file-size">Loading...</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Format:</div>
+                    <div class="info-value" id="info-format">Loading...</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Player Status:</div>
+                    <div class="info-value" id="player-status">Initializing...</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Current Stream URL:</div>
                     <div class="info-value">
                         <input type="text" id="stream-url" readonly style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                         <button onclick="copyStreamUrl()" class="btn-small" style="margin-top: 5px;">
                             <i class="fas fa-copy"></i> Copy URL
                         </button>
                     </div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label">Player Status:</div>
-                    <div class="info-value" id="player-status">Initializing...</div>
                 </div>
             </div>
         </div>
@@ -326,6 +463,9 @@
         // Global variables
         let videoData = null;
         let player = null;
+        let currentStreamMethod = 'auto';
+        let streamingAttempts = 0;
+        const MAX_STREAMING_ATTEMPTS = 3;
         
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -337,6 +477,15 @@
             checkAuthStatus();
             loadVideo();
             setupEventListeners();
+            
+            // Listen for messages from auth callback
+            window.addEventListener('message', function(event) {
+                if (event.data === 'auth_success') {
+                    // Reload video data after successful auth
+                    loadVideo();
+                    checkAuthStatus();
+                }
+            });
         });
         
         // Check authentication status
@@ -367,6 +516,8 @@
             try {
                 document.getElementById('player-video-title').textContent = 'Loading...';
                 document.getElementById('player-status').textContent = 'Fetching video data...';
+                document.getElementById('streaming-status').style.display = 'block';
+                document.getElementById('status-message').textContent = 'Fetching video information...';
                 
                 const response = await fetch(`/api/video/${videoId}`);
                 const data = await response.json();
@@ -392,6 +543,7 @@
             } catch (error) {
                 console.error('Error loading video:', error);
                 showError('Failed to load video: ' + error.message);
+                fallbackToGoogleDrive();
             }
         }
         
@@ -401,20 +553,38 @@
             
             document.getElementById('player-video-title').textContent = videoData.title;
             document.getElementById('info-video-id').textContent = videoId;
+            document.getElementById('info-file-size').textContent = videoData.size || 'Unknown';
+            document.getElementById('info-format').textContent = videoData.mimeType || 'Video';
             document.getElementById('stream-url').value = videoData.streamUrl;
             
-            // Update video meta info (size would need additional API call)
-            document.getElementById('video-size').innerHTML = '<i class="fas fa-hdd"></i> Loading size...';
-            document.getElementById('video-format').innerHTML = '<i class="fas fa-file-video"></i> Video';
+            // Update video meta info
+            document.getElementById('video-size').innerHTML = `<i class="fas fa-hdd"></i> ${videoData.size || 'Unknown'}`;
+            document.getElementById('video-format').innerHTML = `<i class="fas fa-file-video"></i> ${getFileExtension(videoData.mimeType)}`;
         }
         
-        // Initialize Video.js player
+        // Initialize Video.js player with multiple streaming methods
         function initializeVideoPlayer() {
             try {
+                streamingAttempts = 0;
+                currentStreamMethod = document.getElementById('stream-method-select').value;
+                
+                // Hide loading, show video player
+                document.getElementById('player-loading').style.display = 'none';
+                document.getElementById('my-video').style.display = 'block';
+                document.getElementById('fallback-player').style.display = 'none';
+                
                 // Destroy existing player if any
                 if (player) {
                     player.dispose();
                 }
+                
+                // Get streaming source based on selected method
+                const source = getStreamingSource(currentStreamMethod);
+                
+                // Update status display
+                updateStreamingStatus('initializing', `Using ${source.method} streaming...`);
+                document.getElementById('streaming-method').textContent = source.method;
+                document.getElementById('streaming-method').className = `method-badge method-${source.method}`;
                 
                 // Create new player
                 player = videojs('my-video', {
@@ -425,48 +595,228 @@
                     responsive: true,
                     playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
                     sources: [{
-                        src: videoData.streamUrl,
-                        type: 'video/mp4'
-                    }]
+                        src: source.url,
+                        type: source.type
+                    }],
+                    html5: {
+                        vhs: {
+                            overrideNative: true
+                        },
+                        nativeAudioTracks: false,
+                        nativeVideoTracks: false
+                    }
                 });
                 
                 // Player event listeners
                 player.on('loadedmetadata', function() {
                     document.getElementById('player-status').textContent = 'Ready to play';
-                    updateVideoSizeInfo();
+                    updateStreamingStatus('success', `Streaming via ${source.method} method`);
+                    updateVideoDuration();
                 });
                 
-                player.on('error', function() {
-                    document.getElementById('player-status').textContent = 'Error playing video';
-                    showError('Error playing video. Try downloading instead.');
-                });
-                
-                player.on('play', function() {
+                player.on('playing', function() {
                     document.getElementById('player-status').textContent = 'Playing';
+                    updateStreamingStatus('success', `Streaming via ${source.method} method`);
                 });
                 
                 player.on('pause', function() {
                     document.getElementById('player-status').textContent = 'Paused';
                 });
                 
-                console.log('Video player initialized');
+                player.on('error', function() {
+                    streamingAttempts++;
+                    const error = player.error();
+                    console.error('Player error:', error);
+                    
+                    if (streamingAttempts < MAX_STREAMING_ATTEMPTS) {
+                        // Try next streaming method
+                        tryNextStreamingMethod();
+                    } else {
+                        // All methods failed, fallback to Google Drive
+                        updateStreamingStatus('error', 'All streaming methods failed');
+                        fallbackToGoogleDrive();
+                    }
+                });
+                
+                console.log(`Video player initialized with ${source.method} method`);
                 
             } catch (error) {
                 console.error('Player initialization error:', error);
-                showError('Could not initialize video player: ' + error.message);
+                updateStreamingStatus('error', 'Player initialization failed');
+                
+                if (streamingAttempts < MAX_STREAMING_ATTEMPTS) {
+                    tryNextStreamingMethod();
+                } else {
+                    fallbackToGoogleDrive();
+                }
             }
         }
         
-        // Update video size information
-        function updateVideoSizeInfo() {
+        // Get streaming source based on method
+        function getStreamingSource(method) {
+            if (!videoData) return { url: '', type: 'video/mp4', method: 'direct' };
+            
+            switch(method) {
+                case 'direct':
+                    return {
+                        url: videoData.streamUrl,
+                        type: getVideoType(videoData.mimeType),
+                        method: 'direct'
+                    };
+                
+                case 'proxy':
+                    return {
+                        url: `/api/stream/${videoId}`,
+                        type: 'video/mp4',
+                        method: 'proxy'
+                    };
+                
+                case 'embed':
+                    // For embed method, we'll use iframe instead
+                    useGoogleDriveEmbed();
+                    return {
+                        url: videoData.alternativeUrls?.preview || `https://drive.google.com/file/d/${videoId}/preview`,
+                        type: 'video/mp4',
+                        method: 'embed'
+                    };
+                
+                case 'auto':
+                default:
+                    // Auto: Try proxy first, then direct, then embed
+                    if (streamingAttempts === 0) {
+                        return {
+                            url: `/api/stream/${videoId}`,
+                            type: 'video/mp4',
+                            method: 'proxy'
+                        };
+                    } else if (streamingAttempts === 1) {
+                        return {
+                            url: videoData.streamUrl,
+                            type: getVideoType(videoData.mimeType),
+                            method: 'direct'
+                        };
+                    } else {
+                        useGoogleDriveEmbed();
+                        return {
+                            url: videoData.alternativeUrls?.preview || `https://drive.google.com/file/d/${videoId}/preview`,
+                            type: 'video/mp4',
+                            method: 'embed'
+                        };
+                    }
+            }
+        }
+        
+        // Try next streaming method
+        function tryNextStreamingMethod() {
+            updateStreamingStatus('warning', `Trying alternative streaming method (attempt ${streamingAttempts + 1}/${MAX_STREAMING_ATTEMPTS})`);
+            
+            // Get next method in sequence
+            const methods = ['proxy', 'direct', 'embed'];
+            const currentIndex = methods.indexOf(currentStreamMethod === 'auto' ? 'proxy' : currentStreamMethod);
+            const nextMethod = currentIndex < methods.length - 1 ? methods[currentIndex + 1] : 'embed';
+            
+            // Update UI to show we're trying next method
+            document.getElementById('stream-method-select').value = nextMethod;
+            currentStreamMethod = nextMethod;
+            
+            // Reinitialize player with new method
+            setTimeout(() => {
+                if (nextMethod === 'embed') {
+                    useGoogleDriveEmbed();
+                } else {
+                    const source = getStreamingSource(nextMethod);
+                    if (player) {
+                        player.src({ src: source.url, type: source.type });
+                        player.load();
+                        player.play().catch(e => console.log('Auto-play prevented:', e));
+                    }
+                }
+            }, 1000);
+        }
+        
+        // Use Google Drive embed as fallback
+        function useGoogleDriveEmbed() {
+            const embedUrl = videoData?.alternativeUrls?.preview || `https://drive.google.com/file/d/${videoId}/preview`;
+            
+            // Hide video.js player
+            document.getElementById('my-video').style.display = 'none';
+            if (player) {
+                player.dispose();
+                player = null;
+            }
+            
+            // Show iframe
+            const iframe = document.getElementById('fallback-player');
+            iframe.src = embedUrl;
+            iframe.style.display = 'block';
+            
+            // Update status
+            document.getElementById('player-status').textContent = 'Using Google Drive player';
+            updateStreamingStatus('warning', 'Using Google Drive embedded player');
+            document.getElementById('streaming-method').textContent = 'embed';
+            document.getElementById('streaming-method').className = 'method-badge method-fallback';
+            
+            console.log('Switched to Google Drive embed player');
+        }
+        
+        // Fallback to Google Drive if everything fails
+        function fallbackToGoogleDrive() {
+            updateStreamingStatus('error', 'Falling back to Google Drive');
+            useGoogleDriveEmbed();
+        }
+        
+        // Update streaming status display
+        function updateStreamingStatus(type, message) {
+            const statusElement = document.getElementById('streaming-status');
+            const messageElement = document.getElementById('status-message');
+            
+            statusElement.className = `streaming-status status-${type}`;
+            messageElement.textContent = message;
+            statusElement.style.display = 'block';
+        }
+        
+        // Update video duration info
+        function updateVideoDuration() {
             if (!player) return;
             
             const duration = player.duration();
-            const durationStr = duration ? formatTime(duration) : 'Unknown';
+            if (duration && !isNaN(duration)) {
+                const durationStr = formatTime(duration);
+                document.getElementById('video-size').innerHTML = `<i class="fas fa-clock"></i> Duration: ${durationStr}`;
+            }
+        }
+        
+        // Helper function to detect video type
+        function getVideoType(mimeType) {
+            if (!mimeType) return 'video/mp4';
             
-            // For now, we don't have actual file size from API
-            // You could add this to your server API
-            document.getElementById('video-size').innerHTML = `<i class="fas fa-hdd"></i> Duration: ${durationStr}`;
+            if (mimeType.includes('mp4')) return 'video/mp4';
+            if (mimeType.includes('webm')) return 'video/webm';
+            if (mimeType.includes('ogg') || mimeType.includes('ogv')) return 'video/ogg';
+            if (mimeType.includes('avi')) return 'video/x-msvideo';
+            if (mimeType.includes('mov')) return 'video/quicktime';
+            if (mimeType.includes('wmv')) return 'video/x-ms-wmv';
+            if (mimeType.includes('mkv')) return 'video/x-matroska';
+            
+            return 'video/mp4';
+        }
+        
+        // Get file extension from mime type
+        function getFileExtension(mimeType) {
+            if (!mimeType) return 'Video';
+            
+            const extensions = {
+                'video/mp4': 'MP4',
+                'video/webm': 'WebM',
+                'video/ogg': 'OGG',
+                'video/x-msvideo': 'AVI',
+                'video/quicktime': 'MOV',
+                'video/x-ms-wmv': 'WMV',
+                'video/x-matroska': 'MKV',
+                'video/mpeg': 'MPEG'
+            };
+            
+            return extensions[mimeType] || mimeType.split('/').pop().toUpperCase();
         }
         
         // Setup event listeners for controls
@@ -478,12 +828,30 @@
                 }
             });
             
+            // Streaming method selector
+            document.getElementById('stream-method-select').addEventListener('change', function(e) {
+                currentStreamMethod = e.target.value;
+                streamingAttempts = 0;
+                
+                if (currentStreamMethod === 'embed') {
+                    useGoogleDriveEmbed();
+                } else {
+                    // Destroy and recreate player with new method
+                    if (player) {
+                        player.dispose();
+                        player = null;
+                    }
+                    initializeVideoPlayer();
+                }
+            });
+            
             // Download button
             document.getElementById('download-btn').addEventListener('click', function() {
                 if (videoData && videoData.downloadUrl) {
                     window.open(videoData.downloadUrl, '_blank');
                 } else {
-                    showError('Download URL not available');
+                    const downloadUrl = `https://drive.google.com/uc?export=download&id=${videoId}`;
+                    window.open(downloadUrl, '_blank');
                 }
             });
             
@@ -508,12 +876,26 @@
                 });
             });
             
+            // Reload player button
+            document.getElementById('reload-player-btn').addEventListener('click', function() {
+                streamingAttempts = 0;
+                if (player) {
+                    player.dispose();
+                    player = null;
+                }
+                document.getElementById('my-video').style.display = 'block';
+                document.getElementById('fallback-player').style.display = 'none';
+                document.getElementById('player-loading').style.display = 'block';
+                setTimeout(() => {
+                    initializeVideoPlayer();
+                }, 500);
+            });
+            
             // Subtitle selector (placeholder - would need actual subtitle files)
             document.getElementById('subtitle-select').addEventListener('change', function(e) {
                 if (e.target.value === 'custom') {
                     const url = prompt('Enter URL to subtitle file (WebVTT format):');
                     if (url) {
-                        // This would require implementing subtitle loading
                         showMessage('Custom subtitle loading not implemented yet', 'info');
                     }
                     e.target.value = 'none';
@@ -546,23 +928,45 @@
         }
         
         function showMessage(message, type = 'info') {
-            alert(`${type.toUpperCase()}: ${message}`);
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+                color: white;
+                border-radius: 10px;
+                z-index: 1000;
+                animation: fadeIn 0.3s;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
         
         function showError(message) {
             console.error(message);
-            alert(`ERROR: ${message}`);
+            showMessage(`ERROR: ${message}`, 'error');
             document.getElementById('player-status').textContent = `Error: ${message}`;
         }
-        
-        // Listen for messages from auth callback
-        window.addEventListener('message', function(event) {
-            if (event.data === 'auth_success') {
-                // Reload video data after successful auth
-                loadVideo();
-                checkAuthStatus();
-            }
-        });
     </script>
+    
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+    </style>
 </body>
 </html>
