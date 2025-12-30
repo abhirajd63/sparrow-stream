@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Button clicks
         if (connectBtn) connectBtn.addEventListener('click', showAuthModal);
         if (refreshBtn) refreshBtn.addEventListener('click', loadVideos);
-        if (logoutBtn) logoutBtn.addEventListener('click', revokeAuth);
         if (emptyConnectBtn) emptyConnectBtn.addEventListener('click', showAuthModal);
         if (retryBtn) retryBtn.addEventListener('click', loadVideos);
         
@@ -74,15 +73,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Listen for messages from auth callback
         window.addEventListener('message', handleAuthMessage);
-        
-        // Handle offline/online events
-        window.addEventListener('offline', () => {
-            showMessage('⚠️ You are offline. Some features may not work.', 'warning');
-        });
-        
-        window.addEventListener('online', () => {
-            showMessage('✅ Back online!', 'success');
-        });
     }
     
     // ==================== NAVBAR SCROLL EFFECT ====================
@@ -104,7 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateAuthStatus(true);
             } else {
                 updateAuthStatus(false);
-                
                 if (data.authUrl) {
                     authUrl = data.authUrl;
                 }
@@ -119,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isConnected) {
             statusDot.classList.add('connected');
             statusText.textContent = 'Connected to Google Drive';
-            if (connectBtn) connectBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reconnect';
+            if (connectBtn) connectBtn.innerHTML = '<i class="fab fa-google-drive"></i> Reconnect';
         } else {
             statusDot.classList.remove('connected');
             statusText.textContent = 'Not Connected';
@@ -141,32 +130,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function startAuthFlow() {
         try {
-            // First, get the auth URL if we don't have it
             if (!authUrl) {
                 const response = await fetch('/api/videos');
                 const data = await response.json();
                 
                 if (data.authUrl) {
                     authUrl = data.authUrl;
-                } else if (data.needAuth) {
-                    // Try to construct auth URL
-                    const baseUrl = window.location.origin;
-                    authUrl = `${baseUrl}/auth`;
                 }
             }
             
             if (authUrl) {
-                // Open auth in a new window
                 const authWindow = window.open(
                     authUrl,
                     'google_auth',
-                    'width=600,height=700,menubar=no,toolbar=no,location=yes,resizable=yes,scrollbars=yes,status=yes'
+                    'width=600,height=700'
                 );
                 
-                // Check if window was blocked
-                if (!authWindow || authWindow.closed || typeof authWindow.closed === 'undefined') {
-                    showMessage('⚠️ Popup blocked! Please allow popups for this site.', 'warning');
-                    // Fallback: redirect in same window
+                if (!authWindow) {
+                    showMessage('⚠️ Please allow popups for this site.', 'warning');
                     window.location.href = authUrl;
                 }
             } else {
@@ -174,28 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Auth flow error:', error);
-            showMessage('❌ Authentication error: ' + error.message, 'error');
-        }
-    }
-    
-    async function revokeAuth() {
-        if (confirm('Are you sure you want to logout? You will need to reconnect to view videos.')) {
-            try {
-                const response = await fetch('/api/revoke-auth');
-                const data = await response.json();
-                
-                if (data.success) {
-                    showMessage('✅ Logged out successfully', 'success');
-                    allVideos = [];
-                    filteredVideos = [];
-                    displayVideos([]);
-                    checkAuthStatus();
-                } else {
-                    showMessage('❌ Logout failed: ' + data.error, 'error');
-                }
-            } catch (error) {
-                showMessage('❌ Logout error: ' + error.message, 'error');
-            }
+            showMessage('❌ Authentication error', 'error');
         }
     }
     
@@ -214,8 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
             showLoading();
             hideStates();
             
+            console.log('Loading videos from API...');
             const response = await fetch('/api/videos');
             const data = await response.json();
+            
+            console.log('API Response:', data);
             
             if (data.error) {
                 if (data.needAuth) {
@@ -228,11 +191,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (!data.videos || data.videos.length === 0) {
-                showEmptyState('No videos found in your Google Drive. Upload some videos to get started!');
+                showEmptyState('No videos found in your Google Drive.');
                 return;
             }
             
-            console.log('Loaded videos:', data.videos); // Debug log
+            console.log(`Received ${data.videos.length} videos`);
+            
+            // Debug: Log each video's ID
+            data.videos.forEach((video, index) => {
+                console.log(`Video ${index + 1}: ID="${video.id}", Title="${video.title}"`);
+            });
             
             allVideos = data.videos;
             filteredVideos = [...allVideos];
@@ -255,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         videosContainer.innerHTML = '';
         
         if (videos.length === 0) {
-            showEmptyState('No videos match your search criteria.');
+            showEmptyState('No videos match your search.');
             return;
         }
         
@@ -266,6 +234,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function createVideoCard(video) {
+        console.log(`Creating card for: "${video.title}" (ID: ${video.id})`);
+        
         const card = document.createElement('div');
         card.className = 'video-card';
         card.dataset.id = video.id;
@@ -288,20 +258,24 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // FIX: Use a closure to capture the video ID
-        const videoId = video.id;
+        // FIXED: Store video data on the element
+        card.videoData = video;
+        
         card.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('Opening video:', {
-                id: videoId,
-                title: video.title,
-                url: `/player.html?id=${encodeURIComponent(videoId)}`
-            });
+            const videoId = this.videoData.id;
+            const videoTitle = this.videoData.title;
             
-            // Open player page with correct video ID
-            window.location.href = `/player.html?id=${encodeURIComponent(videoId)}`;
+            console.log('=== VIDEO CLICKED ===');
+            console.log('Title:', videoTitle);
+            console.log('ID:', videoId);
+            console.log('Opening URL:', `/player.html?id=${videoId}`);
+            
+            // Add cache buster to prevent caching
+            const cacheBuster = Date.now();
+            window.location.href = `/player.html?id=${videoId}&_=${cacheBuster}`;
         });
         
         return card;
@@ -328,9 +302,9 @@ document.addEventListener('DOMContentLoaded', function() {
         filteredVideos.sort((a, b) => {
             switch (sortBy) {
                 case 'newest':
-                    return new Date(b.created) - new Date(a.created);
+                    return new Date(b.modified || b.created) - new Date(a.modified || a.created);
                 case 'oldest':
-                    return new Date(a.created) - new Date(b.created);
+                    return new Date(a.modified || a.created) - new Date(b.modified || b.created);
                 case 'name':
                     return a.title.localeCompare(b.title);
                 case 'size':
