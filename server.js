@@ -28,6 +28,15 @@ app.use(express.static('.'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// === IMPORTANT: CORS Headers for Video Streaming ===
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range, Authorization');
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    next();
+});
+
 // Get Google credentials from environment
 function getGoogleCredentials() {
     if (process.env.GOOGLE_CREDENTIALS) {
@@ -101,7 +110,7 @@ app.get('/api/videos', async (req, res) => {
         
         const response = await drive.files.list({
             q: "mimeType contains 'video/' and trashed = false",
-            fields: 'files(id, name, size, mimeType, createdTime, modifiedTime, webViewLink)',
+            fields: 'files(id, name, size, mimeType, createdTime, modifiedTime, webViewLink, webContentLink, thumbnailLink)',
             orderBy: 'createdTime desc',
             pageSize: 100,
         });
@@ -112,7 +121,9 @@ app.get('/api/videos', async (req, res) => {
             size: file.size ? formatFileSize(file.size) : 'Unknown',
             type: file.mimeType,
             created: new Date(file.createdTime).toLocaleDateString(),
-            link: file.webViewLink
+            link: file.webViewLink,
+            thumbnail: file.thumbnailLink,
+            webContentLink: file.webContentLink
         }));
 
         res.json({ success: true, videos });
@@ -149,7 +160,7 @@ function generateAuthUrl(authClient) {
     });
 }
 
-// API: Get video stream URL
+// API: Get video stream URL - FIXED FOR STREAMING
 app.get('/api/video/:id', async (req, res) => {
     try {
         const auth = getOAuth2Client();
@@ -169,20 +180,68 @@ app.get('/api/video/:id', async (req, res) => {
         // Get video details
         const file = await drive.files.get({
             fileId: fileId,
-            fields: 'id, name, size, mimeType, webContentLink'
+            fields: 'id, name, size, mimeType, webContentLink, webViewLink'
         });
 
-        // Generate authenticated stream URL
-        const streamUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+        // === FIXED: Multiple streaming URL options ===
+        const streamingUrls = {
+            // Option 1: Direct Google Drive URL (most reliable)
+            direct: `https://drive.google.com/uc?id=${fileId}&export=download`,
+            
+            // Option 2: Google Drive preview (for embedded playback)
+            preview: `https://drive.google.com/file/d/${fileId}/preview`,
+            
+            // Option 3: Google Drive API with auth (for range requests)
+            api: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+            
+            // Option 4: Google Drive viewer
+            viewer: `https://drive.google.com/file/d/${fileId}/view`
+        };
+
+        // Get authenticated URL for API option
         const headers = await auth.getRequestHeaders();
-        const authUrl = `${streamUrl}&access_token=${headers.Authorization.split(' ')[1]}`;
+        const apiUrlWithAuth = `${streamingUrls.api}&access_token=${headers.Authorization.split(' ')[1]}`;
+        streamingUrls.apiWithAuth = apiUrlWithAuth;
+
+        // Check if file is publicly accessible (for direct streaming)
+        let isPublic = false;
+        try {
+            const permissions = await drive.permissions.list({
+                fileId: fileId,
+                fields: 'permissions(type, role)'
+            });
+            isPublic = permissions.data.permissions.some(p => 
+                p.type === 'anyone' && p.role === 'reader'
+            );
+        } catch (err) {
+            console.log('Could not check file permissions:', err.message);
+        }
 
         res.json({
             success: true,
             title: file.data.name,
-            streamUrl: authUrl,
-            downloadUrl: `https://drive.google.com/uc?export=download&id=${fileId}`,
-            directLink: `https://drive.google.com/file/d/${fileId}/view`
+            size: file.data.size ? formatFileSize(file.data.size) : 'Unknown',
+            mimeType: file.data.mimeType,
+            isPublic: isPublic,
+            
+            // Primary streaming URL (using direct download URL)
+            streamUrl: streamingUrls.direct,
+            
+            // Alternative URLs
+            alternativeUrls: {
+                preview: streamingUrls.preview,
+                api: apiUrlWithAuth,
+                viewer: streamingUrls.viewer
+            },
+            
+            // For iframe embedding
+            embedUrl: streamingUrls.preview,
+            
+            // For downloading
+            downloadUrl: streamingUrls.direct,
+            
+            // Direct Google Drive link
+            directLink: streamingUrls.viewer
         });
     } catch (error) {
         console.error('Video API Error:', error);
@@ -191,6 +250,82 @@ app.get('/api/video/:id', async (req, res) => {
             error: error.message,
             needAuth: error.message.includes('invalid_grant') || error.message.includes('token')
         });
+    }
+});
+
+// === NEW: Video Proxy Endpoint (Solves CORS and Range requests) ===
+app.get('/api/stream/:id', async (req, res) => {
+    try {
+        const auth = getOAuth2Client();
+        
+        // Load token
+        try {
+            const tokenContent = await fs.readFile('./token.json', 'utf8');
+            const token = JSON.parse(tokenContent);
+            auth.setCredentials(token);
+        } catch (err) {
+            return res.status(401).send('Not authenticated');
+        }
+        
+        const fileId = req.params.id;
+        const range = req.headers.range;
+        
+        const drive = google.drive({ version: 'v3', auth });
+        
+        // Get file metadata
+        const file = await drive.files.get({
+            fileId: fileId,
+            fields: 'size, mimeType, name'
+        });
+        
+        const fileSize = parseInt(file.data.size);
+        const mimeType = file.data.mimeType || 'video/mp4';
+        
+        // Handle range requests (for video seeking)
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunkSize = (end - start) + 1;
+            
+            const headers = {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunkSize,
+                'Content-Type': mimeType,
+                'Cache-Control': 'public, max-age=31536000'
+            };
+            
+            res.writeHead(206, headers);
+            
+            // Stream the file from Google Drive
+            const driveStream = await drive.files.get(
+                { fileId: fileId, alt: 'media' },
+                { responseType: 'stream', headers: { Range: `bytes=${start}-${end}` } }
+            );
+            
+            driveStream.data.pipe(res);
+        } else {
+            // Full file request
+            const headers = {
+                'Content-Length': fileSize,
+                'Content-Type': mimeType,
+                'Accept-Ranges': 'bytes',
+                'Cache-Control': 'public, max-age=31536000'
+            };
+            
+            res.writeHead(200, headers);
+            
+            const driveStream = await drive.files.get(
+                { fileId: fileId, alt: 'media' },
+                { responseType: 'stream' }
+            );
+            
+            driveStream.data.pipe(res);
+        }
+    } catch (error) {
+        console.error('Stream Error:', error);
+        res.status(500).send('Streaming error: ' + error.message);
     }
 });
 
@@ -257,20 +392,22 @@ app.get('/auth/callback', async (req, res) => {
                     <h2>✅ Authorization Successful!</h2>
                     <p>You can now close this window and return to your video library.</p>
                     <script>
-                        // Try to close window after 2 seconds
+                        // Send success message to opener
+                        if (window.opener) {
+                            window.opener.postMessage('auth_success', '*');
+                        }
+                        
+                        // Close window after 2 seconds
                         setTimeout(() => {
                             try {
                                 window.close();
                             } catch (e) {
-                                // If window can't be closed, show message
-                                document.body.innerHTML += '<p>You may now close this tab manually.</p>';
+                                // If window can't be closed, redirect to home
+                                setTimeout(() => {
+                                    window.location.href = '${baseUrl}';
+                                }, 1000);
                             }
                         }, 2000);
-                        
-                        // Send message to opener if exists
-                        if (window.opener) {
-                            window.opener.postMessage('auth_success', '*');
-                        }
                     </script>
                 </div>
             </body>
@@ -327,9 +464,9 @@ app.get('/api/revoke-auth', async (req, res) => {
 
 // Helper function to format file size
 function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
@@ -344,6 +481,10 @@ app.listen(PORT, () => {
     
     🔒 Authentication: Basic Auth Enabled
     👤 Username: ${Object.keys(users)[0]}
+    
+    📹 Streaming Endpoints:
+    • /api/video/:id → Video info with multiple URLs
+    • /api/stream/:id → Direct streaming proxy
     
     ⚠️  Important Setup:
     1. Google Cloud Redirect URI: ${baseUrl}/auth/callback
