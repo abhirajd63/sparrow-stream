@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sparrow Stream - Video Player</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://vjs.zencdn.net/7.20.3/video-js.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .player-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .video-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .video-meta {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .video-player-wrapper {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .video-controls-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+        }
+        
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-section h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .control-item {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .control-item label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .control-item select,
+        .control-item input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+        
+        .control-item select:focus,
+        .control-item input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .action-buttons button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .video-info-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .info-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            min-width: 150px;
+        }
+        
+        .info-value {
+            color: #333;
+        }
+        
+        @media (max-width: 768px) {
+            .player-container {
+                padding: 10px;
+            }
+            
+            .player-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .video-title {
+                font-size: 20px;
+            }
+            
+            .control-group {
+                flex-direction: column;
+            }
+            
+            .control-item {
+                min-width: 100%;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-film"></i>
+                    <h1>Sparrow Stream</h1>
+                </div>
+                <button onclick="goBack()" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Library
+                </button>
+            </div>
+        </header>
+
+        <div class="player-container">
+            <div class="player-header">
+                <div>
+                    <h2 id="player-video-title" class="video-title">Loading Video...</h2>
+                    <div class="video-meta">
+                        <span id="video-size"><i class="fas fa-hdd"></i> Loading...</span>
+                        <span id="video-format"><i class="fas fa-file-video"></i> Loading...</span>
+                    </div>
+                </div>
+                <div id="player-auth-status" class="status-badge status-disconnected">
+                    <i class="fas fa-sync-alt fa-spin"></i> Loading...
+                </div>
+            </div>
+            
+            <div class="video-player-wrapper">
+                <video
+                    id="my-video"
+                    class="video-js vjs-big-play-centered vjs-fluid"
+                    controls
+                    preload="auto"
+                    poster=""
+                    data-setup='{}'
+                >
+                    <p class="vjs-no-js">
+                        To view this video please enable JavaScript, or consider upgrading to a
+                        web browser that <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                    </p>
+                </video>
+            </div>
+            
+            <div class="video-controls-panel">
+                <div class="control-section">
+                    <h3><i class="fas fa-sliders-h"></i> Playback Controls</h3>
+                    <div class="control-group">
+                        <div class="control-item">
+                            <label for="playback-speed"><i class="fas fa-tachometer-alt"></i> Playback Speed</label>
+                            <select id="playback-speed">
+                                <option value="0.5">0.5x (Slow)</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1" selected>1x (Normal)</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x (Fast)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-item">
+                            <label for="quality-select"><i class="fas fa-tv"></i> Quality</label>
+                            <select id="quality-select">
+                                <option value="auto">Auto (Recommended)</option>
+                                <option value="1080">1080p (if available)</option>
+                                <option value="720">720p</option>
+                                <option value="480">480p</option>
+                                <option value="360">360p</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h3><i class="fas fa-closed-captioning"></i> Subtitles & Audio</h3>
+                    <div class="control-group">
+                        <div class="control-item">
+                            <label for="subtitle-select"><i class="fas fa-closed-captioning"></i> Subtitles</label>
+                            <select id="subtitle-select">
+                                <option value="none">No subtitles</option>
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                                <option value="custom">Load custom subtitle file...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="control-item">
+                            <label for="audio-track"><i class="fas fa-volume-up"></i> Audio Track</label>
+                            <select id="audio-track">
+                                <option value="default">Default</option>
+                                <option value="english">English</option>
+                                <option value="spanish">Spanish</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="download-btn" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Download Video
+                    </button>
+                    <button id="open-drive-btn" class="btn btn-secondary">
+                        <i class="fab fa-google-drive"></i> Open in Google Drive
+                    </button>
+                    <button id="share-btn" class="btn btn-secondary">
+                        <i class="fas fa-share"></i> Share Link
+                    </button>
+                </div>
+            </div>
+            
+            <div class="video-info-card">
+                <h3><i class="fas fa-info-circle"></i> Video Information</h3>
+                <div class="info-row">
+                    <div class="info-label">Video ID:</div>
+                    <div class="info-value" id="info-video-id">Loading...</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Stream URL:</div>
+                    <div class="info-value">
+                        <input type="text" id="stream-url" readonly style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                        <button onclick="copyStreamUrl()" class="btn-small" style="margin-top: 5px;">
+                            <i class="fas fa-copy"></i> Copy URL
+                        </button>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Player Status:</div>
+                    <div class="info-value" id="player-status">Initializing...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video.js library -->
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    
+    <script>
+        // Get video ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('id');
+        
+        // Global variables
+        let videoData = null;
+        let player = null;
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!videoId) {
+                showError('No video ID specified');
+                return;
+            }
+            
+            checkAuthStatus();
+            loadVideo();
+            setupEventListeners();
+        });
+        
+        // Check authentication status
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/auth-status');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('player-auth-status');
+                if (data.authenticated) {
+                    statusElement.className = 'status-badge status-connected';
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+                } else {
+                    statusElement.className = 'status-badge status-disconnected';
+                    statusElement.innerHTML = '<i class="fas fa-times-circle"></i> Not Connected';
+                    
+                    if (data.needAuth) {
+                        showMessage('Please connect Google Drive to play videos', 'warning');
+                    }
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+            }
+        }
+        
+        // Load video data
+        async function loadVideo() {
+            try {
+                document.getElementById('player-video-title').textContent = 'Loading...';
+                document.getElementById('player-status').textContent = 'Fetching video data...';
+                
+                const response = await fetch(`/api/video/${videoId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError(data.error);
+                    
+                    if (data.needAuth) {
+                        // Show reconnect option
+                        setTimeout(() => {
+                            if (confirm('Authentication required. Would you like to reconnect to Google Drive?')) {
+                                window.location.href = '/';
+                            }
+                        }, 1000);
+                    }
+                    return;
+                }
+                
+                videoData = data;
+                updateVideoInfo();
+                initializeVideoPlayer();
+                
+            } catch (error) {
+                console.error('Error loading video:', error);
+                showError('Failed to load video: ' + error.message);
+            }
+        }
+        
+        // Update video information display
+        function updateVideoInfo() {
+            if (!videoData) return;
+            
+            document.getElementById('player-video-title').textContent = videoData.title;
+            document.getElementById('info-video-id').textContent = videoId;
+            document.getElementById('stream-url').value = videoData.streamUrl;
+            
+            // Update video meta info (size would need additional API call)
+            document.getElementById('video-size').innerHTML = '<i class="fas fa-hdd"></i> Loading size...';
+            document.getElementById('video-format').innerHTML = '<i class="fas fa-file-video"></i> Video';
+        }
+        
+        // Initialize Video.js player
+        function initializeVideoPlayer() {
+            try {
+                // Destroy existing player if any
+                if (player) {
+                    player.dispose();
+                }
+                
+                // Create new player
+                player = videojs('my-video', {
+                    controls: true,
+                    autoplay: false,
+                    preload: 'auto',
+                    fluid: true,
+                    responsive: true,
+                    playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+                    sources: [{
+                        src: videoData.streamUrl,
+                        type: 'video/mp4'
+                    }]
+                });
+                
+                // Player event listeners
+                player.on('loadedmetadata', function() {
+                    document.getElementById('player-status').textContent = 'Ready to play';
+                    updateVideoSizeInfo();
+                });
+                
+                player.on('error', function() {
+                    document.getElementById('player-status').textContent = 'Error playing video';
+                    showError('Error playing video. Try downloading instead.');
+                });
+                
+                player.on('play', function() {
+                    document.getElementById('player-status').textContent = 'Playing';
+                });
+                
+                player.on('pause', function() {
+                    document.getElementById('player-status').textContent = 'Paused';
+                });
+                
+                console.log('Video player initialized');
+                
+            } catch (error) {
+                console.error('Player initialization error:', error);
+                showError('Could not initialize video player: ' + error.message);
+            }
+        }
+        
+        // Update video size information
+        function updateVideoSizeInfo() {
+            if (!player) return;
+            
+            const duration = player.duration();
+            const durationStr = duration ? formatTime(duration) : 'Unknown';
+            
+            // For now, we don't have actual file size from API
+            // You could add this to your server API
+            document.getElementById('video-size').innerHTML = `<i class="fas fa-hdd"></i> Duration: ${durationStr}`;
+        }
+        
+        // Setup event listeners for controls
+        function setupEventListeners() {
+            // Playback speed
+            document.getElementById('playback-speed').addEventListener('change', function(e) {
+                if (player) {
+                    player.playbackRate(parseFloat(e.target.value));
+                }
+            });
+            
+            // Download button
+            document.getElementById('download-btn').addEventListener('click', function() {
+                if (videoData && videoData.downloadUrl) {
+                    window.open(videoData.downloadUrl, '_blank');
+                } else {
+                    showError('Download URL not available');
+                }
+            });
+            
+            // Open in Google Drive
+            document.getElementById('open-drive-btn').addEventListener('click', function() {
+                if (videoData && videoData.directLink) {
+                    window.open(videoData.directLink, '_blank');
+                } else {
+                    const driveUrl = `https://drive.google.com/file/d/${videoId}/view`;
+                    window.open(driveUrl, '_blank');
+                }
+            });
+            
+            // Share button
+            document.getElementById('share-btn').addEventListener('click', function() {
+                const currentUrl = window.location.href;
+                navigator.clipboard.writeText(currentUrl).then(() => {
+                    showMessage('Link copied to clipboard!', 'success');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    prompt('Copy this link to share:', currentUrl);
+                });
+            });
+            
+            // Subtitle selector (placeholder - would need actual subtitle files)
+            document.getElementById('subtitle-select').addEventListener('change', function(e) {
+                if (e.target.value === 'custom') {
+                    const url = prompt('Enter URL to subtitle file (WebVTT format):');
+                    if (url) {
+                        // This would require implementing subtitle loading
+                        showMessage('Custom subtitle loading not implemented yet', 'info');
+                    }
+                    e.target.value = 'none';
+                }
+            });
+        }
+        
+        // Helper functions
+        function goBack() {
+            window.location.href = '/';
+        }
+        
+        function copyStreamUrl() {
+            const streamUrlInput = document.getElementById('stream-url');
+            streamUrlInput.select();
+            document.execCommand('copy');
+            showMessage('Stream URL copied to clipboard!', 'success');
+        }
+        
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hrs > 0) {
+                return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function showMessage(message, type = 'info') {
+            alert(`${type.toUpperCase()}: ${message}`);
+        }
+        
+        function showError(message) {
+            console.error(message);
+            alert(`ERROR: ${message}`);
+            document.getElementById('player-status').textContent = `Error: ${message}`;
+        }
+        
+        // Listen for messages from auth callback
+        window.addEventListener('message', function(event) {
+            if (event.data === 'auth_success') {
+                // Reload video data after successful auth
+                loadVideo();
+                checkAuthStatus();
+            }
+        });
+    </script>
+</body>
+</html>

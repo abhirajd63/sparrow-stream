@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sparrow Stream - Your Video Library</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-film"></i>
+                    <h1>Sparrow Stream</h1>
+                </div>
+                <p class="tagline">Stream your personal videos from Google Drive</p>
+                
+                <div class="auth-controls">
+                    <button id="connect-btn" class="btn btn-primary">
+                        <i class="fab fa-google-drive"></i> Connect Google Drive
+                    </button>
+                    <button id="refresh-btn" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh Videos
+                    </button>
+                    <button id="logout-btn" class="btn btn-danger">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+                
+                <div class="user-info">
+                    <div id="auth-status" class="status-badge status-disconnected">
+                        <i class="fas fa-times-circle"></i> Not Connected
+                    </div>
+                    <div class="instructions">
+                        <p><i class="fas fa-info-circle"></i> Connect to view videos from your Google Drive. Only your own content is accessible.</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="search-filter">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Search videos...">
+                </div>
+                <div class="filter-options">
+                    <select id="sort-select">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="name">Name A-Z</option>
+                        <option value="size">Size (Largest)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <div class="sidebar">
+                    <div class="sidebar-section">
+                        <h3><i class="fas fa-info-circle"></i> Information</h3>
+                        <p>This platform streams videos directly from your Google Drive. All content remains private to you.</p>
+                    </div>
+                    <div class="sidebar-section">
+                        <h3><i class="fas fa-shield-alt"></i> Security</h3>
+                        <p>Your videos are protected by authentication. Only you can access this content.</p>
+                    </div>
+                    <div class="sidebar-section">
+                        <h3><i class="fas fa-video"></i> Supported Formats</h3>
+                        <p>MP4, AVI, MOV, MKV, WMV, and other common video formats.</p>
+                    </div>
+                </div>
+                
+                <div class="video-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-play-circle"></i> Your Video Library</h2>
+                        <div class="video-count" id="video-count">0 videos</div>
+                    </div>
+                    
+                    <div id="loading" class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading your video library...</p>
+                    </div>
+                    
+                    <div id="videos-container" class="videos-grid">
+                        <!-- Videos will be loaded here dynamically -->
+                    </div>
+                    
+                    <div id="empty-state" class="empty-state" style="display: none;">
+                        <div class="empty-icon">
+                            <i class="fas fa-video-slash"></i>
+                        </div>
+                        <h3>No Videos Found</h3>
+                        <p>Connect your Google Drive to see your videos here.</p>
+                        <button id="empty-connect-btn" class="btn btn-primary">
+                            <i class="fab fa-google-drive"></i> Connect Google Drive
+                        </button>
+                    </div>
+                    
+                    <div id="error-state" class="error-state" style="display: none;">
+                        <div class="error-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3>Error Loading Videos</h3>
+                        <p id="error-message">An error occurred while loading videos.</p>
+                        <button id="retry-btn" class="btn btn-primary">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <p><i class="fas fa-exclamation-triangle"></i> <strong>For Personal Use Only</strong> - Only stream content you own or have rights to distribute.</p>
+                <p class="copyright">Sparrow Stream &copy; 2024 | Secured Streaming Platform</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal for authentication -->
+    <div id="auth-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fab fa-google-drive"></i> Google Drive Authorization</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>You need to authorize Sparrow Stream to access your Google Drive videos.</p>
+                <p>This will open a new window where you can sign in with your Google account and grant read-only access to your video files.</p>
+                <div class="auth-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Click "Authorize" below</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Sign in with your Google account</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Grant read-only access to your Drive</div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button id="cancel-auth" class="btn btn-secondary">Cancel</button>
+                    <button id="start-auth" class="btn btn-primary">Authorize Now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message notification -->
+    <div id="message-toast" class="toast"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
