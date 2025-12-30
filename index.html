@@ -3,146 +3,765 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sparrow Stream - Your Video Library</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Sparrow Stream</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #141414;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 4%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            transition: background 0.3s ease;
+            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+        }
+
+        .navbar.scrolled {
+            background: #141414;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #e50914;
+            letter-spacing: -1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #e5e5e5;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-links a:hover {
+            color: #b3b3b3;
+        }
+
+        .nav-links a.active {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            background: rgba(0,0,0,0.75);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 40px 8px 12px;
+            color: #fff;
+            border-radius: 4px;
+            width: 250px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #fff;
+            background: rgba(0,0,0,0.9);
+        }
+
+        .search-box i {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fff;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            background: linear-gradient(135deg, #e50914, #831010);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #e50914;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #f40612;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        /* Hero Section */
+        .hero {
+            height: 80vh;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, #141414 100%),
+                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600"><rect fill="%23222" width="1200" height="600"/><path fill="%23333" d="M0 300 Q300 200 600 300 T1200 300 L1200 600 L0 600 Z"/></svg>');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            padding: 0 4%;
+            position: relative;
+            margin-top: 70px;
+        }
+
+        .hero-content {
+            max-width: 600px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 1.1;
+        }
+
+        .hero-description {
+            font-size: 1.25rem;
+            color: #e5e5e5;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e50914;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #46d369;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Content Sections */
+        .content-section {
+            padding: 40px 4% 60px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .view-all {
+            color: #e5e5e5;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: color 0.3s;
+        }
+
+        .view-all:hover {
+            color: #fff;
+        }
+
+        /* Video Grid */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .video-card {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s ease, z-index 0s 0.3s;
+            background: #2f2f2f;
+            aspect-ratio: 16/9;
+        }
+
+        .video-card:hover {
+            transform: scale(1.05);
+            z-index: 10;
+            transition: transform 0.3s ease, z-index 0s;
+        }
+
+        .video-thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2f2f2f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 3rem;
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+            padding: 20px 15px 15px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .video-card:hover .video-overlay {
+            transform: translateY(0);
+        }
+
+        .video-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .video-meta {
+            font-size: 0.85rem;
+            color: #b3b3b3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .play-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            color: #000;
+            font-size: 1.5rem;
+        }
+
+        .video-card:hover .play-btn {
+            opacity: 1;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .empty-icon {
+            font-size: 5rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            color: #b3b3b3;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #333;
+            border-top-color: #e50914;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 10px 40px 10px 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #fff;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 40px 4%;
+            border-top: 1px solid #333;
+            margin-top: 60px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: #b3b3b3;
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: #fff;
+        }
+
+        .copyright {
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: #181818;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 30px 30px 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .modal-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+
+        .close-modal:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-body p {
+            color: #b3b3b3;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .auth-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .step-number {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e50914;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            color: #e5e5e5;
+            font-size: 15px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .hero-description {
+                font-size: 1.1rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                height: 60vh;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .search-box input {
+                width: 150px;
+            }
+
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 10px;
+            }
+
+            .btn-large {
+                padding: 12px 24px;
+                font-size: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-film"></i>
-                    <h1>Sparrow Stream</h1>
-                </div>
-                <p class="tagline">Stream your personal videos from Google Drive</p>
-                
-                <div class="auth-controls">
-                    <button id="connect-btn" class="btn btn-primary">
-                        <i class="fab fa-google-drive"></i> Connect Google Drive
-                    </button>
-                    <button id="refresh-btn" class="btn btn-secondary">
-                        <i class="fas fa-sync-alt"></i> Refresh Videos
-                    </button>
-                    <button id="logout-btn" class="btn btn-danger">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </div>
-                
-                <div class="user-info">
-                    <div id="auth-status" class="status-badge status-disconnected">
-                        <i class="fas fa-times-circle"></i> Not Connected
-                    </div>
-                    <div class="instructions">
-                        <p><i class="fas fa-info-circle"></i> Connect to view videos from your Google Drive. Only your own content is accessible.</p>
-                    </div>
-                </div>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="logo-section">
+            <div class="logo">
+                <i class="fas fa-play-circle"></i>
+                SPARROW
             </div>
-        </header>
+            <div class="nav-links">
+                <a href="#" class="active">Home</a>
+                <a href="#">My Videos</a>
+                <a href="#">Recent</a>
+                <a href="#">Favorites</a>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search videos...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="user-menu">
+                <div class="user-avatar">S</div>
+            </div>
+        </div>
+    </nav>
 
-        <main class="main-content">
-            <div class="search-filter">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="search-input" placeholder="Search videos...">
-                </div>
-                <div class="filter-options">
-                    <select id="sort-select">
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="name">Name A-Z</option>
-                        <option value="size">Size (Largest)</option>
-                    </select>
-                </div>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Your Personal Video Library</h1>
+            <p class="hero-description">Stream your videos directly from Google Drive. Connect once and enjoy seamless access to your entire collection.</p>
+            <div class="hero-actions">
+                <button id="connect-btn" class="btn btn-primary btn-large">
+                    <i class="fab fa-google-drive"></i>
+                    Connect Google Drive
+                </button>
+                <button id="refresh-btn" class="btn btn-secondary btn-large">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
+                </button>
             </div>
-            
-            <div class="content-area">
-                <div class="sidebar">
-                    <div class="sidebar-section">
-                        <h3><i class="fas fa-info-circle"></i> Information</h3>
-                        <p>This platform streams videos directly from your Google Drive. All content remains private to you.</p>
-                    </div>
-                    <div class="sidebar-section">
-                        <h3><i class="fas fa-shield-alt"></i> Security</h3>
-                        <p>Your videos are protected by authentication. Only you can access this content.</p>
-                    </div>
-                    <div class="sidebar-section">
-                        <h3><i class="fas fa-video"></i> Supported Formats</h3>
-                        <p>MP4, AVI, MOV, MKV, WMV, and other common video formats.</p>
-                    </div>
-                </div>
-                
-                <div class="video-section">
-                    <div class="section-header">
-                        <h2><i class="fas fa-play-circle"></i> Your Video Library</h2>
-                        <div class="video-count" id="video-count">0 videos</div>
-                    </div>
-                    
-                    <div id="loading" class="loading-state">
-                        <div class="spinner"></div>
-                        <p>Loading your video library...</p>
-                    </div>
-                    
-                    <div id="videos-container" class="videos-grid">
-                        <!-- Videos will be loaded here dynamically -->
-                    </div>
-                    
-                    <div id="empty-state" class="empty-state" style="display: none;">
-                        <div class="empty-icon">
-                            <i class="fas fa-video-slash"></i>
-                        </div>
-                        <h3>No Videos Found</h3>
-                        <p>Connect your Google Drive to see your videos here.</p>
-                        <button id="empty-connect-btn" class="btn btn-primary">
-                            <i class="fab fa-google-drive"></i> Connect Google Drive
-                        </button>
-                    </div>
-                    
-                    <div id="error-state" class="error-state" style="display: none;">
-                        <div class="error-icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <h3>Error Loading Videos</h3>
-                        <p id="error-message">An error occurred while loading videos.</p>
-                        <button id="retry-btn" class="btn btn-primary">
-                            <i class="fas fa-redo"></i> Try Again
-                        </button>
-                    </div>
-                </div>
+            <div class="status-indicator">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Not Connected</span>
             </div>
-        </main>
+        </div>
+    </section>
 
-        <footer class="footer">
-            <div class="footer-content">
-                <p><i class="fas fa-exclamation-triangle"></i> <strong>For Personal Use Only</strong> - Only stream content you own or have rights to distribute.</p>
-                <p class="copyright">Sparrow Stream &copy; 2024 | Secured Streaming Platform</p>
-            </div>
-        </footer>
-    </div>
+    <!-- Main Content -->
+    <main class="content-section">
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <select class="filter-select" id="sort-select">
+                <option value="newest">Recently Added</option>
+                <option value="oldest">Oldest First</option>
+                <option value="name">A-Z</option>
+                <option value="size">Largest</option>
+            </select>
+        </div>
 
-    <!-- Modal for authentication -->
-    <div id="auth-modal" class="modal" style="display: none;">
+        <!-- Video Library Section -->
+        <div class="section-header">
+            <h2 class="section-title">Your Videos</h2>
+            <a href="#" class="view-all">
+                <span id="video-count">0 videos</span>
+            </a>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading your video library...</p>
+        </div>
+
+        <!-- Video Grid -->
+        <div id="videos-container" class="video-grid">
+            <!-- Dynamic video cards will be inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-icon">
+                <i class="fas fa-video-slash"></i>
+            </div>
+            <h3>No Videos Yet</h3>
+            <p>Connect your Google Drive to start streaming your personal video collection.</p>
+            <button id="empty-connect-btn" class="btn btn-primary btn-large">
+                <i class="fab fa-google-drive"></i>
+                Connect Google Drive
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="#">Terms of Use</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Help Center</a>
+                <a href="#">Contact</a>
+            </div>
+            <p class="copyright">© 2024 Sparrow Stream. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Authentication Modal -->
+    <div id="auth-modal" class="modal">
         <div class="modal-content">
+            <button class="close-modal">&times;</button>
             <div class="modal-header">
-                <h3><i class="fab fa-google-drive"></i> Google Drive Authorization</h3>
-                <button class="close-modal">&times;</button>
+                <h3 class="modal-title">
+                    <i class="fab fa-google-drive"></i>
+                    Connect Google Drive
+                </h3>
             </div>
             <div class="modal-body">
-                <p>You need to authorize Sparrow Stream to access your Google Drive videos.</p>
-                <p>This will open a new window where you can sign in with your Google account and grant read-only access to your video files.</p>
+                <p>Authorize Sparrow Stream to access your Google Drive videos securely.</p>
                 <div class="auth-steps">
                     <div class="step">
                         <div class="step-number">1</div>
-                        <div class="step-text">Click "Authorize" below</div>
+                        <div class="step-text">Click Authorize below</div>
                     </div>
                     <div class="step">
                         <div class="step-number">2</div>
-                        <div class="step-text">Sign in with your Google account</div>
+                        <div class="step-text">Sign in with Google</div>
                     </div>
                     <div class="step">
                         <div class="step-number">3</div>
-                        <div class="step-text">Grant read-only access to your Drive</div>
+                        <div class="step-text">Grant read-only access</div>
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -153,9 +772,56 @@
         </div>
     </div>
 
-    <!-- Message notification -->
-    <div id="message-toast" class="toast"></div>
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
 
-    <script src="script.js"></script>
+        // Modal handlers
+        const modal = document.getElementById('auth-modal');
+        const connectBtns = [document.getElementById('connect-btn'), document.getElementById('empty-connect-btn')];
+        const closeModal = document.querySelector('.close-modal');
+        const cancelAuth = document.getElementById('cancel-auth');
+
+        connectBtns.forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    modal.style.display = 'flex';
+                });
+            }
+        });
+
+        closeModal.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        cancelAuth.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Example: Simulate loading
+        setTimeout(() => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'block';
+        }, 1500);
+
+        // Add your Google Drive integration here
+        document.getElementById('start-auth').addEventListener('click', () => {
+            console.log('Starting Google Drive authorization...');
+            // Add your OAuth flow here
+        });
+    </script>
 </body>
 </html>
