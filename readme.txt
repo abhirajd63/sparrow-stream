@@ -1,4 +1,3 @@
-{"web":{"client_id":"1034759814650-n8bdd879iu40p4mmu1qc4nohcpfsfd3k.apps.googleusercontent.com","project_id":"issue-432608","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_secret":"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","redirect_uris":["http://localhost:3000/auth/callback","http://localhost:3000"],"javascript_origins":["http://localhost:3000","http://localhost"]}}
 # Sparrow Stream - Google Drive Video Streaming
 
 A personal video streaming website that streams videos directly from your Google Drive.
@@ -29,4 +28,5 @@ Paste your entire `credentials.json` content as JSON string:
   "web": {
     "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
     "project_id": "sparrow-stream-123456",
+
     "auth
