@@ -1,6 +1,7 @@
-// Wait for page to load
+// ==================== MAIN APPLICATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
+    const navbar = document.getElementById('navbar');
     const videosContainer = document.getElementById('videos-container');
     const loadingElement = document.getElementById('loading');
     const emptyState = document.getElementById('empty-state');
@@ -22,57 +23,75 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelAuthBtn = document.getElementById('cancel-auth');
     const closeModalBtn = document.querySelector('.close-modal');
     
+    // Status Elements
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    
+    // Toast Element
+    const toast = document.getElementById('message-toast');
+    
     // State
     let allVideos = [];
     let filteredVideos = [];
     let authUrl = '';
     
-    // Initialize
-    checkAuthStatus();
-    loadVideos();
-    setupEventListeners();
+    // ==================== INITIALIZATION ====================
+    function init() {
+        setupEventListeners();
+        checkAuthStatus();
+        loadVideos();
+    }
     
     // ==================== EVENT LISTENERS ====================
     function setupEventListeners() {
+        // Navbar scroll effect
+        window.addEventListener('scroll', handleScroll);
+        
         // Button clicks
-        connectBtn.addEventListener('click', showAuthModal);
-        refreshBtn.addEventListener('click', loadVideos);
-        logoutBtn.addEventListener('click', revokeAuth);
-        emptyConnectBtn.addEventListener('click', showAuthModal);
-        retryBtn.addEventListener('click', loadVideos);
+        if (connectBtn) connectBtn.addEventListener('click', showAuthModal);
+        if (refreshBtn) refreshBtn.addEventListener('click', loadVideos);
+        if (logoutBtn) logoutBtn.addEventListener('click', revokeAuth);
+        if (emptyConnectBtn) emptyConnectBtn.addEventListener('click', showAuthModal);
+        if (retryBtn) retryBtn.addEventListener('click', loadVideos);
         
         // Modal buttons
-        startAuthBtn.addEventListener('click', startAuthFlow);
-        cancelAuthBtn.addEventListener('click', hideAuthModal);
-        closeModalBtn.addEventListener('click', hideAuthModal);
+        if (startAuthBtn) startAuthBtn.addEventListener('click', startAuthFlow);
+        if (cancelAuthBtn) cancelAuthBtn.addEventListener('click', hideAuthModal);
+        if (closeModalBtn) closeModalBtn.addEventListener('click', hideAuthModal);
         
         // Close modal when clicking outside
-        authModal.addEventListener('click', function(e) {
-            if (e.target === authModal) {
-                hideAuthModal();
-            }
-        });
+        if (authModal) {
+            authModal.addEventListener('click', (e) => {
+                if (e.target === authModal) {
+                    hideAuthModal();
+                }
+            });
+        }
         
         // Search and filter
-        searchInput.addEventListener('input', filterVideos);
-        sortSelect.addEventListener('change', sortVideos);
+        if (searchInput) searchInput.addEventListener('input', filterVideos);
+        if (sortSelect) sortSelect.addEventListener('change', sortVideos);
         
         // Listen for messages from auth callback
-        window.addEventListener('message', function(event) {
-            if (event.data === 'auth_success') {
-                showMessage('✅ Google Drive connected successfully!', 'success');
-                hideAuthModal();
-                loadVideos();
-                checkAuthStatus();
-            }
+        window.addEventListener('message', handleAuthMessage);
+        
+        // Handle offline/online events
+        window.addEventListener('offline', () => {
+            showMessage('⚠️ You are offline. Some features may not work.', 'warning');
         });
         
-        // Listen for storage events (for auth updates)
-        window.addEventListener('storage', function(e) {
-            if (e.key === 'auth_update') {
-                checkAuthStatus();
-            }
+        window.addEventListener('online', () => {
+            showMessage('✅ Back online!', 'success');
         });
+    }
+    
+    // ==================== NAVBAR SCROLL EFFECT ====================
+    function handleScroll() {
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
     }
     
     // ==================== AUTHENTICATION ====================
@@ -81,16 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/auth-status');
             const data = await response.json();
             
-            const authStatusElement = document.getElementById('auth-status');
-            
             if (data.authenticated) {
-                authStatusElement.className = 'status-badge status-connected';
-                authStatusElement.innerHTML = '<i class="fas fa-check-circle"></i> Connected to Google Drive';
-                connectBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reconnect';
+                updateAuthStatus(true);
             } else {
-                authStatusElement.className = 'status-badge status-disconnected';
-                authStatusElement.innerHTML = '<i class="fas fa-times-circle"></i> Not Connected';
-                connectBtn.innerHTML = '<i class="fab fa-google-drive"></i> Connect Google Drive';
+                updateAuthStatus(false);
                 
                 if (data.authUrl) {
                     authUrl = data.authUrl;
@@ -98,15 +111,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Auth check error:', error);
+            updateAuthStatus(false);
+        }
+    }
+    
+    function updateAuthStatus(isConnected) {
+        if (isConnected) {
+            statusDot.classList.add('connected');
+            statusText.textContent = 'Connected to Google Drive';
+            if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+            if (connectBtn) connectBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Reconnect';
+        } else {
+            statusDot.classList.remove('connected');
+            statusText.textContent = 'Not Connected';
+            if (logoutBtn) logoutBtn.style.display = 'none';
+            if (connectBtn) connectBtn.innerHTML = '<i class="fab fa-google-drive"></i> Connect Google Drive';
         }
     }
     
     function showAuthModal() {
-        authModal.style.display = 'flex';
+        if (authModal) {
+            authModal.style.display = 'flex';
+        }
     }
     
     function hideAuthModal() {
-        authModal.style.display = 'none';
+        if (authModal) {
+            authModal.style.display = 'none';
+        }
     }
     
     async function startAuthFlow() {
@@ -169,6 +201,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function handleAuthMessage(event) {
+        if (event.data === 'auth_success') {
+            showMessage('✅ Google Drive connected successfully!', 'success');
+            hideAuthModal();
+            loadVideos();
+            checkAuthStatus();
+        }
+    }
+    
     // ==================== VIDEO MANAGEMENT ====================
     async function loadVideos() {
         try {
@@ -210,6 +251,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function displayVideos(videos) {
+        if (!videosContainer) return;
+        
         videosContainer.innerHTML = '';
         
         if (videos.length === 0) {
@@ -233,32 +276,23 @@ document.addEventListener('DOMContentLoaded', function() {
         card.innerHTML = `
             <div class="video-thumbnail" style="background: linear-gradient(135deg, ${thumbnailColor} 0%, ${darkenColor(thumbnailColor, 20)} 100%);">
                 <i class="fas fa-film"></i>
-            </div>
-            <div class="video-info">
-                <div class="video-title" title="${escapeHtml(video.title)}">${escapeHtml(truncateText(video.title, 50))}</div>
-                <div class="video-meta">
-                    <span class="video-date">${video.created || 'Unknown date'}</span>
-                    <span class="video-size">${video.size}</span>
+                <div class="play-btn">
+                    <i class="fas fa-play"></i>
                 </div>
-                <button class="watch-btn" data-id="${video.id}">
-                    <i class="fas fa-play"></i> Watch Now
-                </button>
+            </div>
+            <div class="video-overlay">
+                <div class="video-title">${escapeHtml(truncateText(video.title, 40))}</div>
+                <div class="video-meta">
+                    <span>${video.created || 'Unknown date'}</span>
+                    <span>${video.size}</span>
+                </div>
             </div>
         `;
         
-        // Add click event to watch button
-        const watchBtn = card.querySelector('.watch-btn');
-        watchBtn.addEventListener('click', function() {
-            const videoId = this.getAttribute('data-id');
+        // Make card clickable
+        card.addEventListener('click', function() {
+            const videoId = this.dataset.id;
             window.location.href = `/player.html?id=${videoId}`;
-        });
-        
-        // Make entire card clickable
-        card.addEventListener('click', function(e) {
-            if (!e.target.closest('.watch-btn')) {
-                const videoId = this.dataset.id;
-                window.location.href = `/player.html?id=${videoId}`;
-            }
         });
         
         return card;
@@ -291,7 +325,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'name':
                     return a.title.localeCompare(b.title);
                 case 'size':
-                    // Extract numeric size for comparison
                     const sizeA = extractSizeInMB(a.size);
                     const sizeB = extractSizeInMB(b.size);
                     return sizeB - sizeA;
@@ -304,6 +337,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateVideoCount() {
+        if (!videoCountElement) return;
+        
         const total = allVideos.length;
         const showing = filteredVideos.length;
         
@@ -316,49 +351,51 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ==================== UI STATE MANAGEMENT ====================
     function showLoading() {
-        loadingElement.style.display = 'flex';
-        videosContainer.style.display = 'none';
+        if (loadingElement) loadingElement.style.display = 'block';
+        if (videosContainer) videosContainer.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'none';
+        if (errorState) errorState.style.display = 'none';
     }
     
     function hideLoading() {
-        loadingElement.style.display = 'none';
-        videosContainer.style.display = 'grid';
+        if (loadingElement) loadingElement.style.display = 'none';
+        if (videosContainer) videosContainer.style.display = 'grid';
     }
     
     function showEmptyState(message = '') {
-        emptyState.style.display = 'flex';
-        videosContainer.style.display = 'none';
-        loadingElement.style.display = 'none';
-        errorState.style.display = 'none';
-        
-        if (message) {
-            const messageElement = emptyState.querySelector('p');
-            if (messageElement) {
-                messageElement.textContent = message;
+        if (emptyState) {
+            emptyState.style.display = 'block';
+            if (videosContainer) videosContainer.style.display = 'none';
+            if (loadingElement) loadingElement.style.display = 'none';
+            if (errorState) errorState.style.display = 'none';
+            
+            if (message) {
+                const messageElement = emptyState.querySelector('p');
+                if (messageElement) {
+                    messageElement.textContent = message;
+                }
             }
         }
     }
     
     function hideEmptyState() {
-        emptyState.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'none';
     }
     
     function showErrorState(message = '') {
-        errorState.style.display = 'flex';
-        videosContainer.style.display = 'none';
-        loadingElement.style.display = 'none';
-        emptyState.style.display = 'none';
-        
-        if (message) {
-            const messageElement = errorState.querySelector('#error-message');
-            if (messageElement) {
-                messageElement.textContent = message;
+        if (errorState) {
+            errorState.style.display = 'block';
+            if (videosContainer) videosContainer.style.display = 'none';
+            if (loadingElement) loadingElement.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'none';
+            
+            if (message) {
+                const messageElement = errorState.querySelector('#error-message');
+                if (messageElement) {
+                    messageElement.textContent = message;
+                }
             }
         }
-    }
-    
-    function hideErrorState() {
-        errorState.style.display = 'none';
     }
     
     // ==================== HELPER FUNCTIONS ====================
@@ -367,23 +404,19 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let i = 0; i < str.length; i++) {
             hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
-        
-        // Generate pastel colors
         const hue = hash % 360;
-        return `hsl(${hue}, 70%, 65%)`;
+        return `hsl(${hue}, 70%, 45%)`;
     }
     
     function darkenColor(color, percent) {
-        // Simple color darkening for gradient
-        return color.replace(/hsl\((\d+), (\d+)%, (\d+)%\)/, function(match, h, s, l) {
+        return color.replace(/hsl\((\d+), (\d+)%, (\d+)%\)/, (match, h, s, l) => {
             const newLightness = Math.max(0, parseInt(l) - percent);
             return `hsl(${h}, ${s}%, ${newLightness}%)`;
         });
     }
     
     function truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength - 3) + '...';
+        return text.length <= maxLength ? text : text.substring(0, maxLength - 3) + '...';
     }
     
     function escapeHtml(text) {
@@ -394,7 +427,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function extractSizeInMB(sizeString) {
         if (!sizeString || sizeString === 'Unknown') return 0;
-        
         const match = sizeString.match(/([\d.]+)\s*(\w+)/i);
         if (!match) return 0;
         
@@ -405,19 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'gb': return value * 1024;
             case 'mb': return value;
             case 'kb': return value / 1024;
-            case 'b': return value / (1024 * 1024);
             default: return value;
         }
     }
     
     function showMessage(message, type = 'info') {
-        const toast = document.getElementById('message-toast');
+        if (!toast) return;
         
-        // Set message and style
         toast.textContent = message;
         toast.className = 'toast';
         
-        // Add type-based styling
         switch (type) {
             case 'success':
                 toast.style.background = '#27ae60';
@@ -426,27 +455,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 toast.style.background = '#f39c12';
                 break;
             case 'error':
-                toast.style.background = '#e74c3c';
+                toast.style.background = '#e50914';
                 break;
             default:
                 toast.style.background = '#2c3e50';
         }
         
-        // Show toast
         toast.classList.add('show');
         
-        // Auto-hide after 5 seconds
         setTimeout(() => {
             toast.classList.remove('show');
         }, 5000);
     }
     
-    // Initial setup
-    window.addEventListener('offline', () => {
-        showMessage('⚠️ You are offline. Some features may not work.', 'warning');
-    });
-    
-    window.addEventListener('online', () => {
-        showMessage('✅ Back online!', 'success');
-    });
+    // ==================== INITIALIZE APP ====================
+    init();
 });
