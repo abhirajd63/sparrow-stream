@@ -360,163 +360,266 @@
     <!-- Player Script -->
     <script>
         // Get video ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const videoId = urlParams.get('id');
-        const cacheBuster = urlParams.get('_');
+// Get video ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const videoId = urlParams.get('id');
+
+// Global variables
+let player = null;
+let videoData = null;
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('=== PLAYER INITIALIZATION ===');
+    console.log('Video ID from URL:', videoId);
+    
+    if (!videoId) {
+        showError('No video specified. Please go back and select a video.');
+        document.getElementById('error-state').style.display = 'block';
+        return;
+    }
+    
+    await loadVideo();
+    setupEventListeners();
+});
+
+// Load video data
+async function loadVideo() {
+    try {
+        console.log('Fetching video data...');
+        document.getElementById('loading').style.display = 'block';
         
-        console.log('=== PLAYER DEBUG ===');
-        console.log('Video ID from URL:', videoId);
-        console.log('Cache buster:', cacheBuster);
-        console.log('Full URL:', window.location.href);
-        console.log('===================');
-
-        // Global variables
-        let player = null;
-        let videoData = null;
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', async function() {
-            if (!videoId) {
-                showError('No video specified');
-                return;
-            }
-            
-            await loadVideo();
-            setupEventListeners();
+        const response = await fetch(`/api/video/${videoId}`);
+        const data = await response.json();
+        
+        console.log('Video API Response:', {
+            success: data.success,
+            hasStreamUrl: !!data.streamUrl,
+            streamUrlLength: data.streamUrl?.length,
+            error: data.error
         });
-
-        // Load video data
-        async function loadVideo() {
-            try {
-                console.log('Fetching video data for ID:', videoId);
-                
-                const response = await fetch(`/api/video/${videoId}`);
-                const data = await response.json();
-                
-                console.log('Video API response:', data);
-                
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                videoData = data;
-                updateVideoInfo();
-                initializeVideoPlayer();
-                
-                // Show controls
-                document.getElementById('video-actions').style.display = 'flex';
-                document.getElementById('controls-panel').style.display = 'block';
-                document.getElementById('loading').style.display = 'none';
-                
-            } catch (error) {
-                console.error('Error loading video:', error);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error-state').style.display = 'block';
-                document.getElementById('error-message').textContent = error.message;
-            }
+        
+        if (data.error || !data.success) {
+            throw new Error(data.error || 'Failed to load video');
         }
-
-        // Update video information display
-        function updateVideoInfo() {
-            if (!videoData) return;
-            
-            document.getElementById('video-title').textContent = videoData.title;
-            document.getElementById('video-size').innerHTML = `<i class="fas fa-hdd"></i> ${videoData.size}`;
-            document.getElementById('video-date').innerHTML = `<i class="far fa-calendar"></i> ${videoData.created}`;
+        
+        if (!data.streamUrl) {
+            throw new Error('No stream URL received from server');
         }
+        
+        videoData = data;
+        updateVideoInfo();
+        initializeVideoPlayer();
+        
+        // Show controls
+        document.getElementById('video-actions').style.display = 'flex';
+        document.getElementById('controls-panel').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+        
+        console.log('Video data loaded successfully');
+        
+    } catch (error) {
+        console.error('Error loading video:', error);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-state').style.display = 'block';
+        document.getElementById('error-message').textContent = error.message;
+    }
+}
 
-        // Initialize Video.js player
-        function initializeVideoPlayer() {
-            try {
-                player = videojs('video-player', {
-                    controls: true,
-                    autoplay: false,
-                    preload: 'auto',
-                    fluid: true,
-                    playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-                    sources: [{
-                        src: videoData.streamUrl,
-                        type: 'video/mp4'
-                    }]
-                });
-                
-                player.on('loadedmetadata', function() {
-                    console.log('Video metadata loaded');
-                });
-                
-                player.on('error', function() {
-                    console.error('Video player error');
-                    showError('Error playing video. Try downloading instead.');
-                });
-                
-            } catch (error) {
-                console.error('Player initialization error:', error);
-                showError('Could not initialize video player');
-            }
-        }
+// Update video information display
+function updateVideoInfo() {
+    if (!videoData) return;
+    
+    document.getElementById('video-title').textContent = videoData.title;
+    document.getElementById('video-size').innerHTML = `<i class="fas fa-hdd"></i> ${videoData.size || 'Unknown size'}`;
+    document.getElementById('video-date').innerHTML = `<i class="far fa-calendar"></i> ${videoData.created || 'Unknown date'}`;
+}
 
-        // Setup event listeners
-        function setupEventListeners() {
-            // Playback speed
-            document.getElementById('playback-speed').addEventListener('change', function(e) {
-                if (player) {
-                    player.playbackRate(parseFloat(e.target.value));
-                }
-            });
-            
-            // Download button
-            document.getElementById('download-btn').addEventListener('click', function() {
-                if (videoData && videoData.downloadUrl) {
-                    window.open(videoData.downloadUrl, '_blank');
-                } else {
-                    alert('Download URL not available');
-                }
-            });
-            
-            // Open in Google Drive
-            document.getElementById('open-drive-btn').addEventListener('click', function() {
-                if (videoData && videoData.directLink) {
-                    window.open(videoData.directLink, '_blank');
-                } else {
-                    const driveUrl = `https://drive.google.com/file/d/${videoId}/view`;
-                    window.open(driveUrl, '_blank');
-                }
-            });
-            
-            // Share button
-            document.getElementById('share-btn').addEventListener('click', function() {
-                const currentUrl = window.location.href.split('?')[0] + `?id=${videoId}`;
-                if (navigator.share) {
-                    navigator.share({
-                        title: videoData.title,
-                        url: currentUrl
-                    });
-                } else {
-                    navigator.clipboard.writeText(currentUrl).then(() => {
-                        alert('Link copied to clipboard!');
-                    }).catch(() => {
-                        prompt('Copy this link to share:', currentUrl);
-                    });
-                }
-            });
-        }
-
-        // Helper functions
-        function goBack() {
-            window.location.href = '/';
-        }
-
-        function showError(message) {
-            console.error(message);
-            alert('Error: ' + message);
-        }
-
-        // Prevent caching issues
-        window.addEventListener('pageshow', function(event) {
-            if (event.persisted) {
-                window.location.reload();
+// Initialize Video.js player
+function initializeVideoPlayer() {
+    try {
+        console.log('Initializing video player with URL:', videoData.streamUrl.substring(0, 100) + '...');
+        
+        // Create player with proper configuration
+        player = videojs('video-player', {
+            controls: true,
+            autoplay: false,
+            preload: 'metadata',
+            fluid: true,
+            responsive: true,
+            playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+            html5: {
+                vhs: {
+                    overrideNative: true
+                },
+                nativeAudioTracks: false,
+                nativeVideoTracks: false
             }
         });
+        
+        // Set the video source
+        player.src({
+            src: videoData.streamUrl,
+            type: 'video/mp4'
+        });
+        
+        // Event listeners for debugging
+        player.on('loadstart', function() {
+            console.log('Video: loadstart');
+        });
+        
+        player.on('loadedmetadata', function() {
+            console.log('Video: loadedmetadata');
+            console.log('Video duration:', player.duration());
+        });
+        
+        player.on('loadeddata', function() {
+            console.log('Video: loadeddata');
+        });
+        
+        player.on('canplay', function() {
+            console.log('Video: canplay - ready to play');
+        });
+        
+        player.on('playing', function() {
+            console.log('Video: playing');
+        });
+        
+        player.on('waiting', function() {
+            console.log('Video: waiting - buffering');
+        });
+        
+        player.on('error', function() {
+            console.error('Video player error:', player.error());
+            console.error('Error code:', player.error().code);
+            console.error('Error message:', player.error().message);
+            
+            switch(player.error().code) {
+                case 1:
+                    showError('Video error: The download was aborted');
+                    break;
+                case 2:
+                    showError('Video error: Network error');
+                    break;
+                case 3:
+                    showError('Video error: Decoding error - video format may not be supported');
+                    break;
+                case 4:
+                    showError('Video error: Video not supported or corrupted');
+                    break;
+                default:
+                    showError('Video playback error. Try downloading the video instead.');
+            }
+        });
+        
+        // Try to play after a short delay
+        setTimeout(() => {
+            if (player && !player.paused()) {
+                console.log('Attempting to play video...');
+                const playPromise = player.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error('Play failed:', error);
+                        showError('Auto-play was prevented. Please click the play button.');
+                    });
+                }
+            }
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Player initialization error:', error);
+        showError('Could not initialize video player: ' + error.message);
+    }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Playback speed
+    document.getElementById('playback-speed').addEventListener('change', function(e) {
+        if (player) {
+            player.playbackRate(parseFloat(e.target.value));
+        }
+    });
+    
+    // Download button
+    document.getElementById('download-btn').addEventListener('click', function() {
+        if (videoData && videoData.downloadUrl) {
+            window.open(videoData.downloadUrl, '_blank');
+        } else {
+            showError('Download URL not available');
+        }
+    });
+    
+    // Open in Google Drive
+    document.getElementById('open-drive-btn').addEventListener('click', function() {
+        if (videoData && videoData.directLink) {
+            window.open(videoData.directLink, '_blank');
+        } else {
+            const driveUrl = `https://drive.google.com/file/d/${videoId}/view`;
+            window.open(driveUrl, '_blank');
+        }
+    });
+    
+    // Share button
+    document.getElementById('share-btn').addEventListener('click', function() {
+        const currentUrl = window.location.origin + window.location.pathname + `?id=${videoId}`;
+        if (navigator.share) {
+            navigator.share({
+                title: videoData.title,
+                url: currentUrl
+            });
+        } else {
+            navigator.clipboard.writeText(currentUrl).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this link to share:', currentUrl);
+            });
+        }
+    });
+}
+
+// Helper functions
+function goBack() {
+    window.location.href = '/';
+}
+
+function showError(message) {
+    console.error('Error:', message);
+    const errorState = document.getElementById('error-state');
+    if (errorState) {
+        errorState.style.display = 'block';
+        document.getElementById('error-message').textContent = message;
+        document.getElementById('loading').style.display = 'none';
+    } else {
+        alert('Error: ' + message);
+    }
+}
+
+// Add a test button for debugging
+document.addEventListener('DOMContentLoaded', function() {
+    // Add debug button
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'Debug Info';
+    debugBtn.style.cssText = 'position: fixed; bottom: 10px; right: 10px; padding: 5px 10px; background: #e50914; color: white; border: none; border-radius: 4px; cursor: pointer; z-index: 1000;';
+    debugBtn.onclick = function() {
+        console.log('=== DEBUG INFO ===');
+        console.log('Video ID:', videoId);
+        console.log('Video Data:', videoData);
+        console.log('Player:', player);
+        console.log('Player Error:', player?.error());
+        console.log('Stream URL:', videoData?.streamUrl?.substring(0, 200));
+        
+        // Test direct access
+        if (videoData?.streamUrl) {
+            fetch(videoData.streamUrl, { method: 'HEAD' })
+                .then(res => console.log('Direct access status:', res.status))
+                .catch(err => console.error('Direct access failed:', err));
+        }
+    };
+    document.body.appendChild(debugBtn);
+});
     </script>
 </body>
 </html>
+
