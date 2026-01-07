@@ -29,7 +29,8 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
+    res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+    res.header('Access-Control-Allow-Credentials', 'true');
     
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -39,7 +40,7 @@ app.use((req, res, next) => {
 });
 
 // Middleware
-app.use(express.static('.'));
+app.use(express.static(__dirname));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -99,13 +100,16 @@ async function getAuthenticatedClient() {
                 await fs.writeFile('./token.json', JSON.stringify(refreshed.credentials));
                 console.log('Token refreshed successfully');
             } catch (refreshError) {
-                console.log('Token refresh failed, will use existing token:', refreshError.message);
+                console.log('Token refresh failed:', refreshError.message);
+                // Token might be invalid, delete it
+                await fs.unlink('./token.json').catch(() => {});
+                throw new Error('Token refresh failed');
             }
         }
         
         return auth;
     } catch (err) {
-        console.log('No valid token found');
+        console.log('No valid token found:', err.message);
         throw new Error('Not authenticated');
     }
 }
@@ -117,6 +121,19 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function isSupportedFormat(mimeType) {
+    const supported = [
+        'video/mp4',
+        'video/webm', 
+        'video/ogg',
+        'video/x-matroska',
+        'video/quicktime',
+        'video/x-msvideo',
+        'video/x-flv'
+    ];
+    return supported.includes(mimeType);
 }
 
 // Cache for video data (5 minutes)
@@ -141,6 +158,55 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Debug endpoint
+app.get('/api/debug/:id', async (req, res) => {
+    const videoId = req.params.id;
+    console.log(`Debug video: ${videoId}`);
+    
+    try {
+        const auth = await getAuthenticatedClient();
+        const drive = google.drive({ version: 'v3', auth });
+        
+        const file = await drive.files.get({
+            fileId: videoId,
+            fields: 'id, name, mimeType, size'
+        });
+        
+        const accessToken = auth.credentials.access_token;
+        const directUrl = `https://drive.google.com/uc?export=download&id=${videoId}`;
+        const viewUrl = `https://drive.google.com/file/d/${videoId}/view`;
+        const streamUrl = `https://www.googleapis.com/drive/v3/files/${videoId}?alt=media&access_token=${accessToken}`;
+        
+        res.json({
+            success: true,
+            video: {
+                id: file.data.id,
+                name: file.data.name,
+                mimeType: file.data.mimeType,
+                size: file.data.size,
+                formatSupported: isSupportedFormat(file.data.mimeType),
+                testUrls: {
+                    directDownload: directUrl,
+                    googleDriveView: viewUrl,
+                    apiStream: streamUrl,
+                    proxyStream: `${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}/api/stream/${videoId}`
+                },
+                tokenInfo: {
+                    hasToken: !!accessToken,
+                    tokenLength: accessToken ? accessToken.length : 0
+                }
+            }
+        });
+        
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // ==================== API ENDPOINTS ====================
 
 // API: Get list of videos from Google Drive
@@ -162,11 +228,6 @@ app.get('/api/videos', async (req, res) => {
 
         console.log(`Found ${response.data.files.length} video files`);
         
-        // Debug: Log each file
-        response.data.files.forEach((file, index) => {
-            console.log(`Video ${index + 1}: "${file.name}" (ID: ${file.id})`);
-        });
-
         const videos = response.data.files.map((file, index) => {
             const duration = file.videoMediaMetadata?.durationMillis 
                 ? Math.round(file.videoMediaMetadata.durationMillis / 1000) + 's'
@@ -185,7 +246,8 @@ app.get('/api/videos', async (req, res) => {
                 }),
                 modified: file.modifiedTime,
                 extension: file.fileExtension || file.name.split('.').pop() || 'Unknown',
-                link: file.webViewLink
+                link: file.webViewLink,
+                formatSupported: isSupportedFormat(file.mimeType)
             };
         });
 
@@ -242,7 +304,7 @@ app.get('/api/video/:id', async (req, res) => {
         
         const file = await drive.files.get({
             fileId: videoId,
-            fields: 'id, name, size, mimeType, webContentLink, webViewLink, createdTime, videoMediaMetadata'
+            fields: 'id, name, size, mimeType, webContentLink, webViewLink, createdTime, videoMediaMetadata, fileExtension'
         });
 
         // Get access token for streaming
@@ -256,8 +318,9 @@ app.get('/api/video/:id', async (req, res) => {
         const streamUrl = `https://www.googleapis.com/drive/v3/files/${videoId}?alt=media`;
         const authStreamUrl = `${streamUrl}&access_token=${accessToken}`;
         
-        // Also create a proxied URL for better compatibility
-        const proxyStreamUrl = `/api/stream/${videoId}`;
+        // Create proxy URL
+        const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+        const proxyStreamUrl = `${baseUrl}/api/stream/${videoId}`;
 
         const duration = file.data.videoMediaMetadata?.durationMillis 
             ? Math.round(file.data.videoMediaMetadata.durationMillis / 1000) + ' seconds'
@@ -277,7 +340,9 @@ app.get('/api/video/:id', async (req, res) => {
             directLink: `https://drive.google.com/file/d/${videoId}/view`,
             webViewLink: file.data.webViewLink,
             mimeType: file.data.mimeType,
+            fileExtension: file.data.fileExtension || file.data.name.split('.').pop() || 'Unknown',
             supportsStreaming: true,
+            formatSupported: isSupportedFormat(file.data.mimeType),
             timestamp: new Date().toISOString()
         };
 
@@ -290,7 +355,8 @@ app.get('/api/video/:id', async (req, res) => {
         console.log('Video data prepared:', {
             title: videoData.title,
             size: videoData.size,
-            streamUrlLength: videoData.streamUrl?.length
+            format: videoData.fileExtension,
+            supported: videoData.formatSupported
         });
 
         res.json(videoData);
@@ -337,45 +403,64 @@ app.get('/api/stream/:id', async (req, res) => {
         const accessToken = auth.credentials.access_token;
         
         if (!accessToken) {
-            return res.status(401).send('No valid access token');
+            return res.status(401).json({ error: 'No valid access token' });
         }
         
         const streamUrl = `https://www.googleapis.com/drive/v3/files/${videoId}?alt=media`;
+        const authUrl = `${streamUrl}&access_token=${accessToken}`;
         
-        // Set headers for streaming
-        res.setHeader('Content-Type', 'video/mp4');
-        res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        
-        // Forward range requests for seeking
         const range = req.headers.range;
+        
         if (range) {
-            console.log('Range request:', range);
-            // We'll let Google Drive handle range requests directly
-            const proxyUrl = `${streamUrl}&access_token=${accessToken}`;
+            console.log('Range request detected:', range);
             
-            // Proxy the range request to Google Drive
-            const proxyRes = await fetch(proxyUrl, {
-                headers: { 'Range': range }
+            // Fetch with range header
+            const response = await fetch(authUrl, {
+                headers: { 
+                    'Range': range,
+                    'User-Agent': 'Mozilla/5.0'
+                }
             });
             
-            res.setHeader('Content-Range', proxyRes.headers.get('content-range') || '');
-            res.setHeader('Content-Length', proxyRes.headers.get('content-length') || '');
-            res.status(206);
+            // Check if request was successful
+            if (!response.ok) {
+                throw new Error(`Google Drive API error: ${response.status} ${response.statusText}`);
+            }
             
-            proxyRes.body.pipe(res);
+            // Copy headers from Google Drive response
+            const headers = ['content-type', 'content-length', 'content-range', 'accept-ranges'];
+            headers.forEach(header => {
+                const value = response.headers.get(header);
+                if (value) res.setHeader(header, value);
+            });
+            
+            // Additional headers for CORS and caching
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Expose-Headers', '*');
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            
+            res.status(response.status);
+            
+            // Stream the response
+            if (response.body) {
+                response.body.pipe(res);
+            } else {
+                const buffer = await response.arrayBuffer();
+                res.send(Buffer.from(buffer));
+            }
+            
         } else {
-            // Regular request - redirect to authenticated URL
-            const authUrl = `${streamUrl}&access_token=${accessToken}`;
-            console.log('Redirecting to authenticated stream URL');
+            // Non-range request - redirect
+            console.log('Non-range request, redirecting to:', authUrl);
             res.redirect(authUrl);
         }
         
     } catch (error) {
-        console.error('Stream proxy error:', error.message);
-        res.status(500).send('Streaming error: ' + error.message);
+        console.error('Stream proxy error:', error);
+        res.status(500).json({ 
+            error: 'Streaming failed', 
+            message: error.message 
+        });
     }
 });
 
@@ -404,7 +489,7 @@ app.get('/api/auth-status', async (req, res) => {
                 const token = JSON.parse(tokenContent);
                 
                 // Check if token is expired or will expire soon
-                if (token.expiry_date && token.expiry_date < Date.now() + 60000) { // 1 minute buffer
+                if (token.expiry_date && token.expiry_date < Date.now() + 60000) {
                     console.log('Token expired or expiring soon');
                     await fs.unlink('./token.json').catch(() => {});
                     return res.json({ 
@@ -414,10 +499,10 @@ app.get('/api/auth-status', async (req, res) => {
                     });
                 }
                 
-                // Test token validity by making a simple API call
+                // Test token validity
                 const auth = getOAuth2Client();
                 auth.setCredentials(token);
-                await auth.getAccessToken(); // This will throw if token is invalid
+                await auth.getAccessToken();
                 
                 return res.json({ 
                     authenticated: true,
@@ -729,12 +814,12 @@ app.listen(PORT, () => {
     ✅ Health Check: ${baseUrl}/health
     ✅ Video List: ${baseUrl}/api/videos
     ✅ Video Stream: ${baseUrl}/api/video/:id
+    ✅ Debug: ${baseUrl}/api/debug/:id
     ✅ Auth Status: ${baseUrl}/api/auth-status
     ✅ Stream Proxy: ${baseUrl}/api/stream/:id
     
     ⚠️  Important:
     1. Google Cloud Redirect URI must include: ${baseUrl}/auth/callback
-    2. Store GOOGLE_CREDENTIALS in environment variables
     
     📝 Logs will appear below:
     =================================
